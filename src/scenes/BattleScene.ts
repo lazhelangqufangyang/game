@@ -3,7 +3,9 @@ import { addArenaAmbience } from '../assets/ambience';
 import { visualOf, type VisualDef } from '../assets/visuals';
 import { config } from '../config';
 import { RESOURCE_META, RESOURCE_ORDER, grantResource } from '../core/resources';
-import { saveRun } from '../core/save';
+import { mulberry32 } from '../core/rng';
+import { createRun } from '../core/run';
+import { clearRun, saveRun } from '../core/save';
 import { sfx } from '../core/sfx';
 import type {
   Direction,
@@ -17,12 +19,27 @@ import type {
   WaveDef,
 } from '../core/types';
 import { BondTracker, type BondActivation } from '../systems/bonds';
-import { activeItems, inventoryMods, evolutionMods, evolutionPerks } from '../systems/meta';
+import {
+  MAX_SLOTS,
+  activeItems,
+  buyItem,
+  chooseEvolution,
+  evolutionMods,
+  evolutionPerks,
+  findItem,
+  inventoryMods,
+  nextStage,
+  recipeStatus,
+  rollShop,
+  sellItem,
+  sellValue,
+} from '../systems/meta';
 import { PassiveBook, sumMods } from '../systems/passives';
 import { computeStats, rollPassives, XpTracker } from '../systems/progression';
 import { SummonSystem } from '../systems/summon';
-import { DIRECTION_LABEL, WaveDirector } from '../systems/wave';
+import { DIRECTION_LABEL, WaveDirector, resolveDirection } from '../systems/wave';
 import { LevelUpOverlay } from '../ui/LevelUpOverlay';
+import { EvolutionOverlay } from '../ui/EvolutionOverlay';
 import { PassiveBar } from '../ui/PassiveBar';
 import { SkillBar } from '../ui/SkillBar';
 import { SummonBar } from '../ui/SummonBar';
@@ -48,6 +65,14 @@ export class BattleScene extends Phaser.Scene {
   private readonly offerQueue: number[] = [];
   private overlayOpen = false;
   private overlay: LevelUpOverlay | null = null;
+
+  private intermission: Phaser.GameObjects.Container | null = null;
+  private settingsPanel: Phaser.GameObjects.Container | null = null;
+  private uiBlocking = false;
+  private settingsPaused = false;
+  private nextWaveIn = 0;
+  private countdownText: Phaser.GameObjects.Text | null = null;
+  private countdownEvent: Phaser.Time.TimerEvent | null = null;
 
   private player!: Phaser.Physics.Arcade.Sprite;
   private playerShadow: Phaser.GameObjects.Ellipse | null = null;
@@ -99,11 +124,23 @@ export class BattleScene extends Phaser.Scene {
 
   create(): void {
     this.run = this.registry.get('run') as RunState;
+    if (!config.waves[this.run.wave_index]) {
+      this.scene.start('Result', {
+        win: true,
+        kills: this.run.kills,
+        wave: this.run.wave_index,
+      });
+      return;
+    }
     this.wave = config.waves[this.run.wave_index]!;
     this.direction = this.registry.get('direction') as Direction;
     this.dead = false;
     this.waveCleared = false;
     this.overlayOpen = false;
+    this.uiBlocking = false;
+    this.intermission = null;
+    this.settingsPanel = null;
+    this.countdownEvent = null;
     this.attackCd = 0;
     this.invuln = 0;
     this.pointerActive = false;
@@ -173,6 +210,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.setupInput();
     this.buildHud();
+    this.buildSettingsButton();
 
     this.director = new WaveDirector(this.wave);
     this.cameras.main.fadeIn(180, 0, 0, 0);
@@ -278,6 +316,7 @@ export class BattleScene extends Phaser.Scene {
     });
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (this.uiBlocking) return;
       if (this.summonBar.contains(p.worldX, p.worldY)) return;
       if (p.worldY > ARENA_H - 120 && p.worldX > 500) return;
       if (this.overlayOpen) return;
@@ -339,13 +378,13 @@ export class BattleScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setAlpha(0)
-      .setDepth(40);
+      .setDepth(130);
   }
 
   // ---------------------------------------------------------------- update
 
   override update(_time: number, delta: number): void {
-    if (this.dead || this.overlayOpen) return;
+    if (this.dead || this.overlayOpen || this.uiBlocking) return;
     const dt = Math.min(delta, 50);
 
     this.summonSystem.update(dt);
@@ -1415,9 +1454,464 @@ export class BattleScene extends Phaser.Scene {
           wave: this.run.wave_index + 1,
         });
       } else {
-        this.run.wave_index += 1;
-        this.scene.start('Prep');
+        this.openIntermission();
       }
     });
+  }
+
+  // ---------------------------------------------------------------- 波间结算
+
+  /** 下一波方向：与 create 里的算法保持一致。 */
+  private nextDirection(): Direction {
+    const next = config.waves[this.run.wave_index + 1];
+    if (!next) return this.direction;
+    return resolveDirection(next, mulberry32(this.run.seed + (this.run.wave_index + 1) * 7919));
+  }
+
+  private openIntermission(): void {
+    if (this.intermission) return;
+    this.uiBlocking = true;
+    this.physics.pause();
+    this.player.setVelocity(0, 0);
+    this.nextWaveIn = 12;
+
+    if (this.run.shop_offers.length === 0) {
+      const rng = mulberry32(this.run.seed + (this.run.wave_index + 1) * 104729);
+      this.run.shop_offers = rollShop(config.items, rng, 4);
+    }
+
+    this.intermission = this.add.container(0, 0).setDepth(110);
+    this.renderIntermission();
+
+    this.countdownEvent = this.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: () => {
+        this.nextWaveIn -= 1;
+        this.countdownText?.setText(`下一波 ${Math.max(0, this.nextWaveIn)} 秒`);
+        if (this.nextWaveIn <= 0) this.startNextWave();
+      },
+    });
+    this.input.keyboard?.once('keydown-SPACE', () => this.startNextWave());
+    saveRun(this.run);
+  }
+
+  private renderIntermission(): void {
+    const root = this.intermission;
+    if (!root) return;
+    root.removeAll(true);
+
+    const { width, height } = this.scale;
+    root.add(this.add.rectangle(0, 0, width, height, 0x05080d, 0.84).setOrigin(0).setInteractive());
+
+    const leftX = 40;
+    const leftW = 520;
+    const y = 70;
+    const h = 580;
+    root.add(
+      this.add.rectangle(leftX + leftW / 2, y + h / 2, leftW, h, 0x0d1522, 0.96).setStrokeStyle(2, COLORS.border),
+    );
+    const lcx = leftX + leftW / 2;
+
+    root.add(
+      this.add
+        .text(lcx, y + 28, `第 ${this.run.wave_index + 1} 波完成`, {
+          ...TEXT_STYLE,
+          fontSize: '30px',
+          fontStyle: 'bold',
+          color: COLORS.accent,
+        })
+        .setOrigin(0.5),
+    );
+
+    const next = config.waves[this.run.wave_index + 1]!;
+    const dir = this.nextDirection();
+    root.add(
+      this.add
+        .text(lcx, y + 76, `下一波 ${this.run.wave_index + 2} · 来袭方向 ${DIRECTION_LABEL[dir]}`, {
+          ...TEXT_STYLE,
+          fontSize: '19px',
+        })
+        .setOrigin(0.5),
+    );
+
+    const lines = next.groups.map((g) => `${config.enemies[g.enemy]!.name} × ${g.count}`);
+    root.add(
+      this.add
+        .text(lcx, y + 112, lines.join('   '), { ...TEXT_STYLE, fontSize: '15px', color: COLORS.dim })
+        .setOrigin(0.5),
+    );
+
+    this.countdownText = this.add
+      .text(lcx, y + 170, `下一波 ${this.nextWaveIn} 秒`, {
+        ...TEXT_STYLE,
+        fontSize: '24px',
+        color: COLORS.gold,
+      })
+      .setOrigin(0.5);
+    root.add(this.countdownText);
+
+    root.add(
+      this.add
+        .text(
+          lcx,
+          y + 214,
+          `生命 ${Math.ceil(this.run.hp)}/${this.run.max_hp}    经济 ${this.run.economy}    精粹 ${this.run.essence}    Lv.${this.run.level}`,
+          { ...TEXT_STYLE, fontSize: '16px', color: COLORS.dim },
+        )
+        .setOrigin(0.5),
+    );
+
+    const itemsText = this.run.items.length
+      ? this.run.items.map((id) => findItem(config.items, id)?.name ?? id).join('、')
+      : '无';
+    root.add(
+      this.add
+        .text(lcx, y + 250, `装备 ${this.run.items.length}/${MAX_SLOTS}：${itemsText}`, {
+          ...TEXT_STYLE,
+          fontSize: '14px',
+          color: this.run.items.length >= MAX_SLOTS ? COLORS.danger : COLORS.gold,
+        })
+        .setOrigin(0.5),
+    );
+
+    const startBtn = this.add
+      .rectangle(lcx, y + h - 60, 320, 56, 0x1b2a3f)
+      .setStrokeStyle(2, COLORS.accent_line)
+      .setInteractive({ useHandCursor: true });
+    startBtn.on('pointerover', () => startBtn.setFillStyle(0x24384f));
+    startBtn.on('pointerout', () => startBtn.setFillStyle(0x1b2a3f));
+    startBtn.on('pointerdown', () => this.startNextWave());
+    root.add(startBtn);
+    root.add(
+      this.add
+        .text(lcx, y + h - 60, '开始下一波（空格）', {
+          ...TEXT_STYLE,
+          fontSize: '21px',
+          color: COLORS.accent,
+        })
+        .setOrigin(0.5),
+    );
+
+    // 右侧：商店 + 进化 + 回收
+    const rightX = 580;
+    const rightW = 660;
+    root.add(
+      this.add.rectangle(rightX + rightW / 2, y + h / 2, rightW, h, 0x0d1522, 0.96).setStrokeStyle(2, COLORS.border),
+    );
+
+    root.add(
+      this.add.text(rightX + 20, y + 16, '商店', { ...TEXT_STYLE, fontSize: '21px', fontStyle: 'bold' }),
+    );
+    root.add(
+      this.add
+        .text(rightX + rightW - 20, y + 20, `经济 ${this.run.economy}`, {
+          ...TEXT_STYLE,
+          fontSize: '16px',
+          color: COLORS.gold,
+        })
+        .setOrigin(1, 0),
+    );
+
+    const cellW = 300;
+    const cellH = 132;
+    this.run.shop_offers.forEach((id, index) => {
+      const item = findItem(config.items, id);
+      if (!item) return;
+      const col = index % 2;
+      const row = Math.floor(index / 2);
+      this.intermissionCell(item, rightX + 20 + col * (cellW + 12), y + 52 + row * (cellH + 10), cellW, cellH);
+    });
+
+    const stage = nextStage(config.evolutions, this.run.evolutions);
+    const evoY = y + 352;
+    if (stage) {
+      const afford = this.run.essence >= stage.cost;
+      const btn = this.add
+        .rectangle(rightX + 170, evoY, 300, 46, 0x1b2a3f)
+        .setStrokeStyle(2, afford ? COLORS.accent_line : 0x334155)
+        .setInteractive({ useHandCursor: afford });
+      if (afford) {
+        btn.on('pointerdown', () => {
+          new EvolutionOverlay(
+            this,
+            stage,
+            (optionId) => {
+              if (chooseEvolution(this.run, config.evolutions, optionId)) {
+                sfx.play('evolve');
+                saveRun(this.run);
+              }
+              this.renderIntermission();
+            },
+            () => this.renderIntermission(),
+          );
+        });
+      }
+      root.add(btn);
+      root.add(
+        this.add
+          .text(
+            rightX + 170,
+            evoY,
+            afford ? `进化（${stage.cost} 精粹）· 三选一` : `还差 ${stage.cost - this.run.essence} 精粹`,
+            { ...TEXT_STYLE, fontSize: '17px', color: afford ? COLORS.accent : COLORS.dim },
+          )
+          .setOrigin(0.5),
+      );
+    } else {
+      root.add(
+        this.add
+          .text(rightX + 170, evoY, '已完成全部进化', { ...TEXT_STYLE, fontSize: '16px', color: COLORS.dim })
+          .setOrigin(0.5),
+      );
+    }
+
+    root.add(
+      this.add
+        .text(rightX + 640, evoY - 12, '装备回收', {
+          ...TEXT_STYLE,
+          fontSize: '15px',
+          color: COLORS.dim,
+        })
+        .setOrigin(1, 0),
+    );
+
+    this.run.items.slice(0, 6).forEach((id, i) => {
+      const item = findItem(config.items, id);
+      if (!item) return;
+      const rowY = evoY + 34 + i * 30;
+      const label = this.add
+        .text(rightX + 20, rowY, `${item.name}（${item.tier === 1 ? '小件' : item.tier === 2 ? '中件' : '大件'}）`, {
+          ...TEXT_STYLE,
+          fontSize: '15px',
+          color: COLORS.text,
+        })
+        .setInteractive({ useHandCursor: true });
+      label.on('pointerdown', () => this.sellIntermissionItem(item));
+      root.add(label);
+
+      const price = this.add
+        .text(rightX + 420, rowY, `回收 ${sellValue(item)} 经济`, {
+          ...TEXT_STYLE,
+          fontSize: '14px',
+          color: COLORS.gold,
+        })
+        .setOrigin(1, 0);
+      price.on('pointerdown', () => this.sellIntermissionItem(item));
+      root.add(price);
+    });
+  }
+
+  private intermissionCell(item: ItemDef, x: number, y: number, w: number, h: number): void {
+    const recipe = item.recipe ? recipeStatus(item, this.run.items) : { ok: true, missing: [] };
+    const slotsFull = !item.recipe && this.run.items.length >= MAX_SLOTS;
+    const usable = this.run.economy >= item.price && recipe.ok && !slotsFull;
+    const root = this.intermission;
+    if (!root) return;
+
+    const box = this.add
+      .rectangle(x + w / 2, y + h / 2, w, h, 0x0f1724)
+      .setStrokeStyle(1, usable ? 0x2c3f57 : 0x232c38)
+      .setInteractive({ useHandCursor: usable });
+    if (usable) {
+      box.on('pointerdown', () => this.buyIntermissionItem(item));
+      box.on('pointerover', () => box.setFillStyle(0x16233a));
+      box.on('pointerout', () => box.setFillStyle(0x0f1724));
+    }
+    root.add(box);
+
+    const tag =
+      item.kind === 'consumable' ? '消耗品' : item.recipe ? (item.tier === 2 ? '中件·合成' : '大件·合成') : '小件';
+    root.add(
+      this.add.text(x + 12, y + 10, item.name, {
+        ...TEXT_STYLE,
+        fontSize: '17px',
+        color: usable ? COLORS.text : COLORS.dim,
+      }),
+    );
+    root.add(
+      this.add
+        .text(x + w - 12, y + 12, `${item.price} 经济`, {
+          ...TEXT_STYLE,
+          fontSize: '14px',
+          color: usable ? COLORS.gold : COLORS.dim,
+        })
+        .setOrigin(1, 0),
+    );
+    root.add(
+      this.add
+        .text(x + w - 12, y + 32, slotsFull ? '装备已满' : tag, {
+          ...TEXT_STYLE,
+          fontSize: '11px',
+          color: slotsFull ? COLORS.danger : COLORS.dim,
+        })
+        .setOrigin(1, 0),
+    );
+
+    const descLines: string[] = [];
+    for (let i = 0; i < item.desc.length; i += 19) descLines.push(item.desc.slice(i, i + 19));
+    root.add(
+      this.add.text(x + 12, y + 40, descLines.join('\n'), {
+        ...TEXT_STYLE,
+        fontSize: '12px',
+        color: COLORS.dim,
+        lineSpacing: 2,
+      }),
+    );
+
+    if (item.recipe) {
+      const names = item.recipe.map((id) => findItem(config.items, id)?.name ?? id).join(' + ');
+      root.add(
+        this.add.text(x + 12, y + h - 22, `合成：${names}${recipe.ok ? ' ✓' : ' ✗'}`, {
+          ...TEXT_STYLE,
+          fontSize: '12px',
+          color: recipe.ok ? COLORS.accent : COLORS.dim,
+        }),
+      );
+    }
+  }
+
+  private buyIntermissionItem(item: ItemDef): void {
+    const result = buyItem(item, this.run);
+    if (result === 'poor') {
+      this.toast('经济不足');
+      return;
+    }
+    if (result === 'slots') {
+      this.toast('装备格已满，先合成腾格');
+      return;
+    }
+    if (result === 'recipe') {
+      this.toast('缺少合成组件');
+      return;
+    }
+    sfx.play('buy');
+    this.run.shop_offers = this.run.shop_offers.filter((id) => id !== item.id);
+    saveRun(this.run);
+    this.renderIntermission();
+  }
+
+  private sellIntermissionItem(item: ItemDef): void {
+    if (sellItem(item, this.run) !== 'ok') return;
+    sfx.play('buy');
+    saveRun(this.run);
+    this.renderIntermission();
+  }
+
+  private startNextWave(): void {
+    if (!this.intermission) return;
+    this.countdownEvent?.remove();
+    this.countdownEvent = null;
+    this.intermission.destroy(true);
+    this.intermission = null;
+    this.uiBlocking = false;
+
+    const dir = this.nextDirection();
+    this.registry.set('direction', dir);
+    this.run.wave_index += 1;
+    this.run.shop_offers = [];
+    saveRun(this.run);
+    this.physics.resume();
+    this.scene.restart();
+  }
+
+  // ---------------------------------------------------------------- 设置
+
+  private buildSettingsButton(): void {
+    const gear = this.add
+      .text(ARENA_W - 24, 78, '⚙ 设置', { ...TEXT_STYLE, fontSize: '15px', color: COLORS.dim })
+      .setOrigin(1, 0)
+      .setDepth(45)
+      .setInteractive({ useHandCursor: true });
+    gear.on('pointerdown', () => this.openSettings());
+  }
+
+  private openSettings(): void {
+    if (this.settingsPanel || this.overlayOpen) return;
+    this.uiBlocking = true;
+    if (!this.physics.world.isPaused) {
+      this.physics.pause();
+      this.settingsPaused = true;
+    }
+
+    const { width, height } = this.scale;
+    const root = this.add.container(0, 0).setDepth(140);
+    this.settingsPanel = root;
+    root.add(this.add.rectangle(0, 0, width, height, 0x05080d, 0.86).setOrigin(0).setInteractive());
+
+    root.add(
+      this.add.rectangle(width / 2, height / 2, 460, 340, 0x0d1522).setStrokeStyle(2, COLORS.border),
+    );
+    root.add(
+      this.add
+        .text(width / 2, height / 2 - 130, '设置', {
+          ...TEXT_STYLE,
+          fontSize: '28px',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5),
+    );
+
+    const muted = sfx.muted;
+    const sound = this.add
+      .text(width / 2, height / 2 - 60, `音效：${muted ? '关' : '开'}`, {
+        ...TEXT_STYLE,
+        fontSize: '20px',
+        color: COLORS.text,
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    sound.on('pointerdown', () => {
+      const nowMuted = sfx.toggleMute();
+      sound.setText(`音效：${nowMuted ? '关' : '开'}`);
+      if (!nowMuted) sfx.play('buy');
+    });
+    root.add(sound);
+
+    const restart = this.add
+      .text(width / 2, height / 2, '重开一局（清空存档）', {
+        ...TEXT_STYLE,
+        fontSize: '20px',
+        color: COLORS.danger,
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    restart.on('pointerdown', () => {
+      clearRun();
+      this.registry.set('run', createRun(config.hero));
+      this.registry.set('resumed', false);
+      this.scene.start('Boot');
+    });
+    root.add(restart);
+
+    const close = this.add
+      .rectangle(width / 2, height / 2 + 92, 200, 48, 0x1b2a3f)
+      .setStrokeStyle(2, COLORS.accent_line)
+      .setInteractive({ useHandCursor: true });
+    close.on('pointerdown', () => this.closeSettings());
+    root.add(close);
+    root.add(
+      this.add
+        .text(width / 2, height / 2 + 92, '返回游戏', { ...TEXT_STYLE, fontSize: '19px', color: COLORS.accent })
+        .setOrigin(0.5),
+    );
+
+    root.add(
+      this.add
+        .text(width / 2, height / 2 + 136, 'M 键也可静音', {
+          ...TEXT_STYLE,
+          fontSize: '13px',
+          color: COLORS.dim,
+        })
+        .setOrigin(0.5),
+    );
+  }
+
+  private closeSettings(): void {
+    this.settingsPanel?.destroy(true);
+    this.settingsPanel = null;
+    this.uiBlocking = this.intermission !== null;
+    if (this.settingsPaused && !this.intermission && !this.overlayOpen) this.physics.resume();
+    this.settingsPaused = false;
   }
 }

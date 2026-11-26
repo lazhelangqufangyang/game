@@ -5,6 +5,25 @@
 >
 > 本文所有 prompt 都是**可直接粘贴**的英文（图像模型对英文更稳），说明文字是中文。
 
+## 已生成的图片（直接拿去用）
+
+| 文件 | 用途 |
+|---|---|
+| **[docs/art/prompt-cards.png](art/prompt-cards.png)** | 10 张 prompt 卡片：左侧是该单位的当前占位图（示意构图与配色），右侧是**可以直接复制的完整 prompt** + 4 个姿势说明 + 底部通用负面词 |
+| **[docs/art/style-reference.png](art/style-reference.png)** | **透明底**的风格参考图：10 个单位大图 + 名字 + 逻辑尺寸。可以当 img2img / 风格参考图上传，让模型对齐像素密度和比例 |
+
+重新生成（改了 `data/art-prompts.json` 之后）：
+
+```bash
+npm run dev                      # 另开一个终端
+node tools/art-cards.mjs         # → docs/art/prompt-cards.png + style-reference.png
+```
+
+浏览器里也能直接看：`http://127.0.0.1:5173/preview.html?cards=1`（卡片）、`?ref=1`（参考图）。
+
+> **唯一数据源是 `data/art-prompts.json`**：下面第 1、3 节里的尺寸、颜色、subject 都来自它。
+> 改那里 → 重跑 `node tools/art-cards.mjs`，卡片和文档口径就同步了。
+
 ---
 
 ## 0. 一句话规格

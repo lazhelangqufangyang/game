@@ -1,0 +1,127 @@
+{
+  "_comment": [
+    "AI 出图规格的唯一数据源（docs/art-prompts.md 与 docs/art/*.png 都由它生成）。",
+    "grid = 游戏里的逻辑像素尺寸；size = 建议生成尺寸（grid × 32）；color 取自 data 里的配置色。",
+    "subject 只写主体，风格块由 src/art-preview.ts 的 STYLE 统一拼在前面。"
+  ],
+  "hero": {
+    "label": "英雄 · 游侠",
+    "sprite": "hero",
+    "grid": [18, 20],
+    "size": [576, 640],
+    "color": "#6ee7ff",
+    "color_name": "cyan",
+    "radius": 16,
+    "subject": "a lean ranger in a hooded cloak, cyan-trimmed leather armor, small crossbow, short cape, hood shadowing the upper face, glowing cyan eyes, agile stance",
+    "frames": "idle standing / mid-stride walking / flinching backwards when hit / collapsed on the ground after death",
+    "file": "hero"
+  },
+  "grunt": {
+    "label": "杂兵",
+    "sprite": "grunt",
+    "grid": [16, 16],
+    "size": [512, 512],
+    "color": "#e05c5c",
+    "color_name": "crimson red",
+    "radius": 14,
+    "subject": "a small round-bodied imp with two short horns, angry white eyes, stubby legs, tiny claws, crimson red skin, cute but aggressive",
+    "frames": "idle / walking with legs apart / squashed body flinching / flattened pancake on the ground",
+    "file": "grunt"
+  },
+  "runner": {
+    "label": "疾行者",
+    "sprite": "runner",
+    "grid": [16, 16],
+    "size": [512, 512],
+    "color": "#f0a44a",
+    "color_name": "orange",
+    "radius": 11,
+    "subject": "a lean elongated hound-like creature, long pointed ears, thin spiky back, no arms, orange fur, fast and twitchy, glowing eyes",
+    "frames": "idle / sprinting with legs stretched / recoiling / splattered flat",
+    "file": "runner"
+  },
+  "brute": {
+    "label": "重装（精英）",
+    "sprite": "brute",
+    "grid": [20, 20],
+    "size": [640, 640],
+    "color": "#a855f7",
+    "color_name": "purple",
+    "radius": 21,
+    "subject": "a hulking armored ogre, huge pauldrons, tiny head with heavy brows, thick arms, short legs, purple plate armor with dark rivets, gold belt buckle, slow and heavy",
+    "frames": "idle / heavy stomping step / arm raised flinching / crushed flat on the ground",
+    "file": "brute"
+  },
+  "warden": {
+    "label": "守关者（Boss）",
+    "sprite": "warden",
+    "grid": [26, 26],
+    "size": [832, 832],
+    "color": "#ff4d6d",
+    "color_name": "magenta",
+    "radius": 32,
+    "subject": "a towering horned warden, long curved horns, hollow glowing eyes, cracked stone armor, gold rivets, tattered waist cloth, imposing boss silhouette",
+    "frames": "idle / slow menacing step / roaring while being hit / collapsing into rubble",
+    "file": "warden"
+  },
+  "summon_economy": {
+    "label": "召唤物 · 经济怪",
+    "sprite": "summon_economy",
+    "grid": [16, 16],
+    "size": [512, 512],
+    "color": "#ffd166",
+    "color_name": "gold",
+    "radius": 15,
+    "subject": "a round coin-shaped slime with a golden coin embedded in its forehead, no horns, friendly dumb expression, faint gold ring around it",
+    "frames": "idle / bobbing walk / flinching / collapsing into a puff",
+    "file": "coffer"
+  },
+  "summon_xp": {
+    "label": "召唤物 · 经验怪",
+    "sprite": "summon_xp",
+    "grid": [16, 16],
+    "size": [512, 512],
+    "color": "#5ee6a8",
+    "color_name": "green",
+    "radius": 15,
+    "subject": "a floating green flame wisp with a small book-like charm, no horns, calm expression, faint green ring around it",
+    "frames": "idle / bobbing walk / flinching / collapsing into a puff",
+    "file": "scholar"
+  },
+  "summon_essence": {
+    "label": "召唤物 · 精粹怪",
+    "sprite": "summon_essence",
+    "grid": [16, 16],
+    "size": [512, 512],
+    "color": "#c084fc",
+    "color_name": "violet",
+    "radius": 17,
+    "subject": "a floating single-eyed orb with a gemstone core, no horns, unsettling stare, faint violet ring around it",
+    "frames": "idle / bobbing walk / flinching / collapsing into a puff",
+    "file": "wisp"
+  },
+  "pickup": {
+    "label": "资源球（运行时染色）",
+    "sprite": "pickup",
+    "grid": [11, 11],
+    "size": [352, 352],
+    "color": "#ffffff",
+    "color_name": "white",
+    "radius": 9,
+    "subject": "a small cut gemstone, isometric diamond shape, bright white core with a bright edge, minimal detail, readable at very small size",
+    "frames": "single frame only",
+    "file": "pickup"
+  },
+  "bullet": {
+    "label": "子弹（朝右）",
+    "sprite": "bullet",
+    "grid": [6, 6],
+    "size": [192, 192],
+    "color": "#ffe9a8",
+    "color_name": "warm yellow",
+    "radius": 5,
+    "subject": "a tiny glowing dart pointing right, warm yellow core, near-black outline",
+    "frames": "single frame only, must face right (+X)",
+    "file": "bullet"
+  }
+}

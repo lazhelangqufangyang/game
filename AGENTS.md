@@ -66,11 +66,11 @@
 
 ### 3.1 波次与怪物
 
-- 怪物按**波次**刷新；每波开始时**随机抽一个方向并固定整波**（北/东/南/西），Prep 阶段预告。
-- 波次难度递增；波与波之间有短暂的准备/结算阶段（Prep 场景）。
+- 怪物按**波次**刷新；每波开始时**随机抽一个方向并固定整波**（北/东/南/西），开局与波间面板会预告下一波方向。
+- 波次难度递增；**没有独立 Prep 场景**：一波清空后在**战斗内**弹出结算面板（12 秒倒计时自动开下一波，可提前按空格开始）。
 - **失败条件：英雄生命归零即失败**（没有基地血量；漏怪不会直接判负，但怪物会一直追着英雄打）。
 - 波次配置必须**数据驱动**（波数、怪物种类、数量、间隔、方向、血量/攻击成长曲线 → `data/waves.json`）。
-- 当前 **20 波**：`hp_scale` 1 → 3.2 递增；**第 10、18、20 波为 Boss 波**（守关者；第 20 波双 Boss + 大量小怪），Boss 血条显示在顶部。
+- 当前 **20 波**：`hp_scale` 1 → 3.5 递增；**第 10、18、20 波为 Boss 波**（守关者；第 20 波双 Boss + 大量小怪），Boss 血条显示在顶部。
 - Boss 由 `enemies.json` 的 `boss: true` 标记；第 20 波 Boss 本体 1344 血。
 - **接触判定**用 `attack_range`（比碰撞体半径更小：9 / 7 / 13 / 18），贴身才掉血，避免擦边受伤。
 
@@ -167,8 +167,8 @@
 
 ### 3.9 存档、音效与打击感
 
-- **存档**：`localStorage` 键 `rogue-waves-save`，版本号 `SAVE_VERSION = 2`（装备结构变更时递增，旧档自动作废）；在 Prep 进入、购买、进化、开战、过关时自动保存；**死亡/通关后清档**。
-- 启动时若有合法存档则**自动续档**（Prep 顶部提示），Prep 左上角有「重开一局（清空存档）」。
+- **存档**：`localStorage` 键 `rogue-waves-save`，版本号 `SAVE_VERSION = 2`（装备结构变更时递增，旧档自动作废）；在开战、波间结算、购买、进化、过关时自动保存；**死亡/通关后清档**。
+- 启动时若有合法存档则**自动续档**（直接进入对应波次）；设置面板里有「重开一局（清空存档）」。
 - 存档解析必须**容错**：损坏/版本不符一律当作无存档，不得卡住启动；`hp` 读档时夹到 `max_hp`。
 - **音效**：全部用 WebAudio 现场合成（不引入音频文件），首次指针/键盘交互时解锁；`M` 键静音。
 - **打击感**：击杀触发 ~45ms 物理顿帧（`physics.world.timeScale`），命中飘伤害数字（暴击更大更亮），受击/击杀/升级/进化/购买/Boss 登场各有音效。
@@ -205,7 +205,7 @@
   config/         加载 + 校验 /data
   assets/         美术层：pixel.ts（矩阵→贴图）poses.ts（行走/受击/死亡帧派生）arena.ts（战斗背景插画）ambience.ts（火焰/浮尘/薄雾）tiles.ts（暗角）sprites.ts（装配）visuals.ts（外观校验）backdrop.ts（菜单背景）
   art-preview.ts  美术预览页入口（preview.html：背景 / 姿势总览）
-  scenes/         Boot / Prep / Battle / Result（+ UIScene overlay）
+  scenes/         Boot / Battle / Result（Prep 已废弃，不再进入流程）
   systems/        wave summon resource levelup passive bond shop hero
   entities/       Player Enemy Summon Projectile Pickup
   ui/             槽位面板、三选一、商店、资源 HUD
@@ -252,7 +252,7 @@ npm run typecheck  # tsc --noEmit
   `$env:TEMP='D:\小游戏2\.tmp'; $env:TMP=$env:TEMP`
 - 无头 Edge 的 WebGL 会 `Framebuffer Unsupported`，冒烟测试统一用 `?renderer=canvas` 打开。
 - Vite 文件监听遇到原子写入的临时目录会 `EBUSY` 崩溃；`vite.config.ts` 已忽略 `*.tmpdir/**`，不要删这条配置。
-- 冒烟测试：`node tools/flow.mjs`（20 波全程流转/胜负）、`node tools/summon.mjs`（召唤/掉落/冷却/上限）、`node tools/levelup.mjs`（升级/刷新/满 8 格弃置）、`node tools/skills.mjs`（主动技能与多重射击）、`node tools/bonds.mjs`（羁绊 3/5 进化与腾格）、`node tools/shop.mjs`（三阶合成与主动装备）、`node tools/m6.mjs`（存档续档/Boss 波/清场通关）、`node tools/mobile.mjs`（手机视口 + 触摸拖动）、`node tools/debug.mjs`（战斗运行时状态）。截图落在 `.shots/`。
+- 冒烟测试：`node tools/flow.mjs`（20 波全程流转/胜负）、`node tools/intermission.mjs`（波间结算/买卖/设置）、`node tools/summon.mjs`（召唤/掉落/冷却/上限）、`node tools/levelup.mjs`（升级/刷新/满 8 格弃置）、`node tools/skills.mjs`（主动技能与多重射击）、`node tools/bonds.mjs`（羁绊 3/5 进化与腾格）、`node tools/shop.mjs`（三阶合成与主动装备）、`node tools/m6.mjs`（存档续档/Boss 波/清场通关）、`node tools/mobile.mjs`（手机视口 + 触摸拖动）、`node tools/debug.mjs`（战斗运行时状态）。截图落在 `.shots/`。
 - 美术预览：`node tools/sprite-sheet.mjs` 把 `data/sprites.json` 渲染成 `.shots/sprites.png`（6 倍放大，不需要浏览器）；`node tools/art.mjs` 截 Prep/战斗/召唤三张验收图到 `.shots/`（需要 `npm run dev` 在跑）；`node tools/arena-shot.mjs` 只截战斗背景到 `.shots/40-arena.png`（走 `preview.html`，不依赖 /data）。
 
 ---
@@ -331,6 +331,7 @@ npm run typecheck  # tsc --noEmit
 | 2026-11-26 | 美术基线上线 | 定美术走「像素图即数据」：`data/sprites.json` 字符矩阵 + `src/assets/pixel.ts` 编译贴图 + `src/assets/tiles.ts` 程序化地砖/暗角；加 `data/visuals.json` 控制缩放/投影/压扁/翻转。同步换掉圆点占位：战斗背景改地砖 + 装饰 + 暗角 + 来袭方向闸门，英雄 2 帧行走动画，敌人行走压扁与翻转，受击闪白，死亡碎块，资源球呼吸。补 `tools/sprite-sheet.mjs`、`tools/art.mjs` 与 `docs/art.md` |
 | 2026-11-26 | M5 完成 | 定单英雄、3 阶段进化（3/6/10 精粹）每阶段三选一、不可回退；加 `data/evolutions.json`、`systems/meta.ts`、`data/items.json` 商店（装备上限 3、消耗品即时生效）、Prep 双栏布局与进化弹窗；属性结算并入进化/装备；补 `tools/meta.mjs` |
 | 2026-11-26 | M6 完成 | 扩到 8 波（第 8 波 Boss 守关者，顶部血条）；难度曲线 hp_scale 1→2；localStorage 自动存档/续档/通关清档；WebAudio 合成音效（M 静音）；击杀顿帧 + 伤害数字；补 `core/save.ts`、`core/sfx.ts`、`core/run.ts`、`tests/save.test.ts`、`tools/m6.mjs` |
+| 2026-11-26 | 战斗内结算 + 设置 | 移除波间 Prep 场景：清完一波在战斗内弹出结算面板（下一波预告 / 12 秒倒计时 / 商店 2×2 / 进化 / 装备回收 / 空格开下一波），Boot 直接进 Battle；右上角新增「⚙ 设置」（音效开关、重开一局、返回），设置与结算期间暂停物理与移动输入；补 `tools/intermission.mjs` |
 | 2026-11-26 | M7 装备体系 | 装备拆成三阶（小件 1 / 中件 2 / 大件 3），**全部占格、共 6 格**；配方规则：两小件→中件、中件+小件→大件、双中件→大件（校验强制组件 tier 更低）；合成消耗组件并净腾格，满格也能合；商店 2×2 四件并保证至少 2 件小件；存档版本升到 2；补 `tools/shop.mjs` 与配方单测 |
 | 2026-11-26 | 硬核化 + 打怪掉落 | 英雄生命 25 / 每级 +3 / 移速 320；怪物数量上调、hp_scale 到 3.5；接触伤害改用更小的 `attack_range`；普通怪给经济+经验，精英给精粹，Boss 给 5 精粹；治疗药剂进入商店池；装备半价回收；补 `tools/balance.mjs` |
 | 2026-11-26 | 战斗背景重做（插画化） | 背景从平铺地砖改为**一张程序化绘制的夜景插画**：三层阶梯圆台 + 放射/同心石缝 + 遗迹裂纹苔痕 + 中央法阵 + 四角巨石与火盆 + 月光/火光的冷暖光照 + 暗角与胶片颗粒。加 `src/assets/arena.ts`（8–10ms 生成，单张 1280×720 贴图）与 `src/assets/ambience.ts`（火焰粒子、余烬、浮尘、双层薄雾、法阵呼吸）。支持把真插画放 `src/assets/arena*.png` 直接替换（`import.meta.glob`，无图时不产生 404）。补 `preview.html` + `src/art-preview.ts` + `tools/arena-shot.mjs`，可脱离 Phaser 单独看背景。顺手补 Boss「守关者」像素图（原为圆点兜底）与底部 UI 底衬（原会透出战场） |

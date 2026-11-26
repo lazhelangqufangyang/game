@@ -19,8 +19,13 @@ page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 
 await page.goto('http://127.0.0.1:5173/?renderer=canvas', { waitUntil: 'networkidle0' });
-await sleep(700);
-await page.screenshot({ path: `${OUT}/01-prep.png` });
+await sleep(900);
+
+// 本测试只验证波次流转，关掉三选一面板避免打断
+await page.evaluate(() => {
+  window.__config.levels.passive_offer_levels = [];
+});
+await page.screenshot({ path: `${OUT}/01-battle-direct.png` });
 
 const sceneKey = () =>
   page.evaluate(() => window.__game.scene.getScenes(true).map((s) => s.scene.key).join(','));
@@ -38,29 +43,45 @@ const clearWave = () =>
     return 'cleared';
   });
 
-// 从头打到第 20 波，验证完整波次流转
-let wave = 0;
-while (wave < 25) {
-  const scene = await sceneKey();
-  if (scene.includes('Result')) break;
-  if (scene.includes('Prep')) {
+const state = () =>
+  page.evaluate(() => {
+    const s = window.__game.scene.keys.Battle;
+    const run = window.__game.registry.get('run');
+    return {
+      scene: window.__game.scene.getScenes(true).map((x) => x.scene.key).join(','),
+      intermission: !!s?.intermission,
+      wave: run.wave_index + 1,
+      hp: Math.round(run.hp),
+    };
+  });
+
+// 一波一波推进：清怪 → 结算面板 → 空格下一波，直到结算页
+for (let guard = 0; guard < 60; guard += 1) {
+  const s = await state();
+  if (s.scene.includes('Result')) {
+    console.log('reached Result at', s);
+    break;
+  }
+  if (s.intermission) {
+    console.log(`wave ${s.wave} cleared (intermission), hp ${s.hp}`);
     await page.keyboard.press('Space');
-    await sleep(900);
-    wave += 1;
-    console.log(`wave ${wave} start ->`, await sceneKey());
+    await sleep(1200);
     continue;
   }
   await clearWave();
-  await sleep(1300);
-  console.log(`wave ${wave} cleared ->`, await sceneKey());
+  await sleep(1600);
 }
 
-const finalScene = await sceneKey();
-const stats = await page.evaluate(() => {
+const final = await page.evaluate(() => {
   const run = window.__game.registry.get('run');
-  return { wave: run.wave_index + 1, kills: run.kills, save: localStorage.getItem('rogue-waves-save') };
+  return {
+    wave: run.wave_index + 1,
+    kills: run.kills,
+    economy: run.economy,
+    save: localStorage.getItem('rogue-waves-save'),
+  };
 });
-console.log('final', finalScene, stats);
+console.log('final', final, await sceneKey());
 await page.screenshot({ path: `${OUT}/04-result-win.png` });
 
 console.log('errors:', errors.length ? errors.slice(0, 5) : 'none');

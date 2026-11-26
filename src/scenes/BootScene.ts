@@ -37,7 +37,7 @@ export class BootScene extends Phaser.Scene {
     this.registry.set('run', saved ?? createRun(config.hero));
     this.registry.set('resumed', saved !== null);
     this.registry.set('direction', 'north');
-    this.scene.start('Prep');
+    this.scene.start('Battle');
   }
 
   /**
