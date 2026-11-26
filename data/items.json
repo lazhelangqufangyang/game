@@ -1,0 +1,58 @@
+[
+  {
+    "id": "potion",
+    "name": "治疗药剂",
+    "desc": "立刻回复 40 生命",
+    "price": 8,
+    "kind": "consumable",
+    "heal": 40
+  },
+  {
+    "id": "whetstone",
+    "name": "磨刀石",
+    "desc": "攻击力 +10%（装备）",
+    "price": 12,
+    "kind": "equipment",
+    "mods": { "damage_pct": 10 }
+  },
+  {
+    "id": "boots",
+    "name": "疾行靴",
+    "desc": "移速 +12%（装备）",
+    "price": 10,
+    "kind": "equipment",
+    "mods": { "speed_pct": 12 }
+  },
+  {
+    "id": "amulet",
+    "name": "护心符",
+    "desc": "生命上限 +45（装备）",
+    "price": 14,
+    "kind": "equipment",
+    "mods": { "max_hp": 45 }
+  },
+  {
+    "id": "scope",
+    "name": "鹰眼镜",
+    "desc": "射程 +20%（装备）",
+    "price": 12,
+    "kind": "equipment",
+    "mods": { "range_pct": 20 }
+  },
+  {
+    "id": "fang",
+    "name": "吸血獠牙",
+    "desc": "吸血 +5%（装备）",
+    "price": 18,
+    "kind": "equipment",
+    "mods": { "lifesteal_pct": 5 }
+  },
+  {
+    "id": "core",
+    "name": "连射核心",
+    "desc": "多重射击 +1（装备）",
+    "price": 26,
+    "kind": "equipment",
+    "mods": { "multishot": 1 }
+  }
+]

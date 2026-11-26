@@ -29,11 +29,43 @@ const rect = await page.evaluate(() => {
 });
 console.log('canvas rect', JSON.stringify(rect));
 
-// 点击开始（换算到画布内坐标）
-const cx = rect.x + rect.w / 2;
-const cy = rect.y + rect.h * (360 + 128) / 720;
-await page.touchscreen.tap(cx, cy);
-await sleep(1200);
+// 点击开始：从场景里查「开始战斗」按钮的实际位置，避免 Prep 改布局后写死坐标点空
+const btn = await page.evaluate(() => {
+  const scene = window.__game.scene.keys.Prep;
+  let found = null;
+  const walk = (list) => {
+    for (const o of list) {
+      if (found) return;
+      if (o.text && String(o.text).includes('开始战斗')) {
+        const m = o.getWorldTransformMatrix();
+        found = { x: m.tx, y: m.ty };
+        return;
+      }
+      if (o.list) walk(o.list);
+    }
+  };
+  walk(scene.children.list);
+  return found;
+});
+
+if (btn) {
+  const tx = rect.x + (rect.w * btn.x) / 1280;
+  const ty = rect.y + (rect.h * btn.y) / 720;
+  await page.touchscreen.tap(tx, ty);
+  await sleep(1200);
+  const scene = await page.evaluate(() =>
+    window.__game.scene.getScenes(true).map((s) => s.scene.key).join(','),
+  );
+  if (scene !== 'Battle') {
+    console.log('touch tap missed, fallback to SPACE');
+    await page.keyboard.press('Space');
+    await sleep(1200);
+  }
+} else {
+  console.log('start button not found, fallback to SPACE');
+  await page.keyboard.press('Space');
+  await sleep(1200);
+}
 console.log('after tap:', await page.evaluate(() => window.__game.scene.getScenes(true).map((s) => s.scene.key).join(',')));
 await page.screenshot({ path: `${OUT}/11-mobile-battle.png` });
 

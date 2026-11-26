@@ -1,0 +1,76 @@
+[
+  {
+    "stage": 1,
+    "cost": 3,
+    "options": [
+      {
+        "id": "flame",
+        "name": "烈焰之躯",
+        "desc": "攻击力 +20%，暴击率 +6%",
+        "mods": { "damage_pct": 20, "crit_chance": 6 }
+      },
+      {
+        "id": "storm",
+        "name": "疾雷之影",
+        "desc": "攻速 +18%，移速 +10%",
+        "mods": { "aspd_pct": 18, "speed_pct": 10 }
+      },
+      {
+        "id": "tide",
+        "name": "潮汐之心",
+        "desc": "生命上限 +60，吸血 +4%",
+        "mods": { "max_hp": 60, "lifesteal_pct": 4 }
+      }
+    ]
+  },
+  {
+    "stage": 2,
+    "cost": 6,
+    "options": [
+      {
+        "id": "flame2",
+        "name": "焚天",
+        "desc": "攻击力 +25%，暴击伤害 +40%",
+        "mods": { "damage_pct": 25, "crit_mult": 40 }
+      },
+      {
+        "id": "storm2",
+        "name": "迅影",
+        "desc": "攻速 +25%，主动技能冷却 -20%",
+        "mods": { "aspd_pct": 25 },
+        "skill_cd_pct": 20
+      },
+      {
+        "id": "tide2",
+        "name": "不沉",
+        "desc": "生命上限 +100，每次击杀回复 2 生命",
+        "mods": { "max_hp": 100 },
+        "heal_on_kill": 2
+      }
+    ]
+  },
+  {
+    "stage": 3,
+    "cost": 10,
+    "options": [
+      {
+        "id": "flame3",
+        "name": "炎狱化身",
+        "desc": "攻击力 +40%，多重射击 +1",
+        "mods": { "damage_pct": 40, "multishot": 1 }
+      },
+      {
+        "id": "storm3",
+        "name": "雷霆主宰",
+        "desc": "攻速 +30%，暴击率 +15%",
+        "mods": { "aspd_pct": 30, "crit_chance": 15 }
+      },
+      {
+        "id": "tide3",
+        "name": "永生潮汐",
+        "desc": "生命上限 +150，吸血 +8%",
+        "mods": { "max_hp": 150, "lifesteal_pct": 8 }
+      }
+    ]
+  }
+]

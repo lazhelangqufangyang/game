@@ -6,6 +6,8 @@ import passivesRaw from '../../data/passives.json';
 import bondsRaw from '../../data/bonds.json';
 import skillsRaw from '../../data/skills.json';
 import levelsRaw from '../../data/levels.json';
+import evolutionsRaw from '../../data/evolutions.json';
+import itemsRaw from '../../data/items.json';
 import { buildConfig } from './validate';
 
 /** 启动时校验一次；配置写错会直接抛出并指出文件与字段。 */
@@ -18,4 +20,6 @@ export const config = buildConfig({
   bonds: bondsRaw,
   skills: skillsRaw,
   levels: levelsRaw,
+  evolutions: evolutionsRaw,
+  items: itemsRaw,
 });

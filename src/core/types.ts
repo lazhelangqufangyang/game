@@ -115,6 +115,31 @@ export interface LevelsDef {
   refresh_cost: number;
 }
 
+export interface EvolutionOption {
+  id: string;
+  name: string;
+  desc: string;
+  mods: Partial<Mods>;
+  heal_on_kill?: number;
+  skill_cd_pct?: number;
+}
+
+export interface EvolutionStage {
+  stage: number;
+  cost: number;
+  options: EvolutionOption[];
+}
+
+export interface ItemDef {
+  id: string;
+  name: string;
+  desc: string;
+  price: number;
+  kind: 'consumable' | 'equipment';
+  mods?: Partial<Mods>;
+  heal?: number;
+}
+
 export interface GameConfig {
   hero: HeroDef;
   enemies: Record<string, EnemyDef>;
@@ -124,6 +149,8 @@ export interface GameConfig {
   bonds: BondDef[];
   skills: SkillDef[];
   levels: LevelsDef;
+  evolutions: EvolutionStage[];
+  items: ItemDef[];
 }
 
 /** 羁绊的一档：凑够 need 个成员后进化为 name，提供 mods。 */
@@ -170,4 +197,7 @@ export interface RunState {
   level_xp: number;
   passives: string[];
   bond_members: string[];
+  evolutions: string[];
+  equipment: string[];
+  shop_offers: string[];
 }

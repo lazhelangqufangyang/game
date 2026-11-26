@@ -31,7 +31,7 @@
     "id": "wisp",
     "name": "精粹怪",
     "resource": "essence",
-    "reward": 1,
+    "reward": 2,
     "hp": 60,
     "speed": 75,
     "damage": 9,

@@ -13,6 +13,15 @@ const passives = [
   { id: 'p3', name: 'P3', desc: 'd', rarity: 'common', element: 'fire', mods: { aspd_pct: 8 } },
 ];
 const skills = [{ id: 's1', name: 'S1', desc: 'd', kind: 'dash', level: 2, cooldown_ms: 1000, power: 10 }];
+const bonds = [
+  {
+    id: 'pair',
+    name: '双生',
+    star: 3,
+    members: ['p1', 'p2'],
+    tiers: [{ need: 2, name: '双生体', desc: 'd', mods: { damage_pct: 10 } }],
+  },
+];
 const levels = {
   max_level: 3,
   xp_to_next: [10, 20],
@@ -25,14 +34,32 @@ const hero = { id: 'h', name: 'H', max_hp: 100, speed: 100, radius: 10, color: '
 const enemies = [{ id: 'e', name: 'E', hp: 10, speed: 10, damage: 1, radius: 5, color: '#fff', contact_cooldown_ms: 100 }];
 const waves = [{ index: 1, direction: 'random', groups: [{ enemy: 'e', count: 1, interval_ms: 100 }], hp_scale: 1, speed_scale: 1 }];
 
+const evolutions = [
+  {
+    stage: 1,
+    cost: 3,
+    options: [
+      { id: 'e1', name: 'E1', desc: 'd', mods: { damage_pct: 10 } },
+      { id: 'e2', name: 'E2', desc: 'd', mods: { max_hp: 20 } },
+    ],
+  },
+];
+const items = [
+  { id: 'potion', name: '药', desc: 'd', price: 8, kind: 'consumable', heal: 20 },
+  { id: 'ring', name: '戒', desc: 'd', price: 10, kind: 'equipment', mods: { damage_pct: 5 } },
+];
+
 const src = (over: Record<string, unknown> = {}) => ({
   hero,
   enemies,
   waves,
   summons,
   passives,
+  bonds,
   skills,
   levels,
+  evolutions,
+  items,
   ...over,
 });
 
@@ -124,5 +151,21 @@ describe('配置校验', () => {
     expect(() =>
       buildConfig(src({ skills: [{ ...skills[0], kind: 'barrage', level: 1 }] })),
     ).toThrowError(/count/);
+  });
+
+  it('羁绊成员必须存在且不能被两个羁绊共享', () => {
+    const missing = [{ ...bonds[0], members: ['p1', 'ghost'] }];
+    expect(() => buildConfig(src({ bonds: missing }))).toThrowError(/ghost/);
+
+    const shared = [
+      bonds[0],
+      { ...bonds[0], id: 'pair2', members: ['p2', 'p3'] },
+    ];
+    expect(() => buildConfig(src({ bonds: shared }))).toThrowError(/已被其他羁绊占用/);
+  });
+
+  it('羁绊最高档必须等于成员数（集满才是完全体）', () => {
+    const bad = [{ ...bonds[0], tiers: [{ need: 2, name: 'x', desc: 'd', mods: {} }], members: ['p1', 'p2', 'p3'] }];
+    expect(() => buildConfig(src({ bonds: bad }))).toThrowError(/完全体/);
   });
 });

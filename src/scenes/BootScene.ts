@@ -27,6 +27,10 @@ export class BootScene extends Phaser.Scene {
       level: 1,
       level_xp: 0,
       passives: [],
+      bond_members: [],
+      evolutions: [],
+      equipment: [],
+      shop_offers: [],
     };
     this.registry.set('run', run);
     this.registry.set('direction', 'north');

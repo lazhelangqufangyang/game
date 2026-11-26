@@ -6,7 +6,7 @@ const CARD_W = 250;
 const CARD_H = 300;
 const RARITY_COLOR = { common: 0x64748b, rare: 0xffd166 } as const;
 const RARITY_LABEL = { common: '普通', rare: '稀有' } as const;
-const ELEMENT_LABEL = { fire: '火', thunder: '雷', water: '水' } as const;
+const ELEMENT_LABEL = { fire: '火', thunder: '雷', water: '水', ice: '冰', wind: '风' } as const;
 
 export interface LevelUpCtx {
   level: number;
@@ -17,6 +17,8 @@ export interface LevelUpCtx {
   onPick: (passive: PassiveDef) => void;
   onReplace: (slot: number, passive: PassiveDef) => void;
   onRefresh: () => PassiveDef[] | null;
+  /** 能否直接拿走：有空位，或这个被动会被羁绊吸收（不占格）。 */
+  canTake: (passive: PassiveDef) => boolean;
 }
 
 /** 升级三选一：不能跳过；满 8 格时必须先选一个放弃（二次确认）；每级可花经济刷新一次。 */
@@ -186,8 +188,7 @@ export class LevelUpOverlay {
   }
 
   private choose(passive: PassiveDef): void {
-    const hasRoom = this.ctx.slots.some((s) => s === null);
-    if (hasRoom) this.ctx.onPick(passive);
+    if (this.ctx.canTake(passive)) this.ctx.onPick(passive);
     else this.renderDiscard(passive);
   }
 

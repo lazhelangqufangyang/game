@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { addMenuBackdrop } from '../assets/backdrop';
 import { COLORS, TEXT_STYLE } from '../ui/style';
 
 interface ResultData {
@@ -17,7 +18,8 @@ export class ResultScene extends Phaser.Scene {
   create(data: ResultData): void {
     const { width, height } = this.scale;
     this.restarted = false;
-    this.add.rectangle(0, 0, width, height, COLORS.bg).setOrigin(0);
+    this.add.rectangle(0, 0, width, height, COLORS.bg).setOrigin(0).setDepth(-30);
+    addMenuBackdrop(this, width, height);
 
     this.add
       .text(width / 2, height / 2 - 120, data.win ? '守住了' : '英雄倒下了', {

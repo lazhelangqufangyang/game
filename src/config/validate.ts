@@ -4,8 +4,10 @@ import type {
   Direction,
   Element,
   EnemyDef,
+  EvolutionStage,
   GameConfig,
   HeroDef,
+  ItemDef,
   LevelsDef,
   Mods,
   PassiveDef,
@@ -341,6 +343,65 @@ export function parseBonds(raw: unknown, passives: readonly PassiveDef[]): BondD
   });
 }
 
+export function parseEvolutions(raw: unknown): EvolutionStage[] {
+  const list = asArray(raw, 'evolutions');
+  if (list.length === 0) fail('evolutions', '至少需要 1 个进化阶段');
+  return list.map((item, i) => {
+    const path = `evolutions[${i}]`;
+    const o = asObject(item, path);
+    const stage = num(o.stage, `${path}.stage`, { min: 1, integer: true });
+    if (stage !== i + 1) fail(`${path}.stage`, `阶段序号应为 ${i + 1}，实际为 ${stage}`);
+
+    const options = asArray(o.options, `${path}.options`).map((opt, oi) => {
+      const op = `${path}.options[${oi}]`;
+      const oo = asObject(opt, op);
+      return {
+        id: str(oo.id, `${op}.id`),
+        name: str(oo.name, `${op}.name`),
+        desc: str(oo.desc, `${op}.desc`),
+        mods: parseMods(oo.mods, `${op}.mods`),
+        heal_on_kill:
+          oo.heal_on_kill === undefined ? undefined : num(oo.heal_on_kill, `${op}.heal_on_kill`, { min: 0 }),
+        skill_cd_pct:
+          oo.skill_cd_pct === undefined ? undefined : num(oo.skill_cd_pct, `${op}.skill_cd_pct`, { min: 0, }),
+      };
+    });
+    if (options.length < 2) fail(`${path}.options`, '每阶段至少 2 个进化方向');
+
+    return { stage, cost: num(o.cost, `${path}.cost`, { min: 1 }), options };
+  });
+}
+
+export function parseItems(raw: unknown): ItemDef[] {
+  const list = asArray(raw, 'items');
+  const seen = new Set<string>();
+  return list.map((item, i) => {
+    const path = `items[${i}]`;
+    const o = asObject(item, path);
+    const id = str(o.id, `${path}.id`);
+    if (seen.has(id)) fail(`${path}.id`, `重复的物品 id "${id}"`);
+    seen.add(id);
+
+    const kind = str(o.kind, `${path}.kind`);
+    if (kind !== 'consumable' && kind !== 'equipment') {
+      fail(`${path}.kind`, `应为 consumable / equipment，实际为 "${kind}"`);
+    }
+    if (kind === 'consumable' && o.heal === undefined) {
+      fail(`${path}.heal`, '消耗品必须配置效果（heal）');
+    }
+
+    return {
+      id,
+      name: str(o.name, `${path}.name`),
+      desc: str(o.desc, `${path}.desc`),
+      price: num(o.price, `${path}.price`, { min: 1 }),
+      kind: kind as ItemDef['kind'],
+      mods: o.mods === undefined ? undefined : parseMods(o.mods, `${path}.mods`),
+      heal: o.heal === undefined ? undefined : num(o.heal, `${path}.heal`, { min: 1 }),
+    };
+  });
+}
+
 export interface ConfigSources {
   hero: unknown;
   enemies: unknown;
@@ -350,6 +411,8 @@ export interface ConfigSources {
   bonds: unknown;
   skills: unknown;
   levels: unknown;
+  evolutions: unknown;
+  items: unknown;
 }
 
 export function buildConfig(src: ConfigSources): GameConfig {
@@ -369,5 +432,7 @@ export function buildConfig(src: ConfigSources): GameConfig {
     bonds: parseBonds(src.bonds, passives),
     skills,
     levels: parseLevels(src.levels, skills),
+    evolutions: parseEvolutions(src.evolutions),
+    items: parseItems(src.items),
   };
 }

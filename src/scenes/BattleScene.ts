@@ -13,7 +13,9 @@ import type {
   SummonDef,
   WaveDef,
 } from '../core/types';
-import { PassiveBook } from '../systems/passives';
+import { BondTracker, type BondActivation } from '../systems/bonds';
+import { equipmentMods, evolutionMods, evolutionPerks } from '../systems/meta';
+import { PassiveBook, sumMods } from '../systems/passives';
 import { computeStats, rollPassives, XpTracker } from '../systems/progression';
 import { SummonSystem } from '../systems/summon';
 import { DIRECTION_LABEL, WaveDirector } from '../systems/wave';
@@ -36,6 +38,7 @@ export class BattleScene extends Phaser.Scene {
   private summonSystem!: SummonSystem;
 
   private book!: PassiveBook;
+  private bonds!: BondTracker;
   private xp!: XpTracker;
   private stats!: RunStats;
   private readonly skillCd = new Map<string, number>();
@@ -66,6 +69,7 @@ export class BattleScene extends Phaser.Scene {
   private hpText!: Phaser.GameObjects.Text;
   private waveText!: Phaser.GameObjects.Text;
   private killText!: Phaser.GameObjects.Text;
+  private bondText!: Phaser.GameObjects.Text;
   private resourceTexts!: Record<ResourceKind, Phaser.GameObjects.Text>;
   private toastText!: Phaser.GameObjects.Text;
   private summonBar!: SummonBar;
@@ -95,7 +99,14 @@ export class BattleScene extends Phaser.Scene {
       if (def) this.book.add(def);
     }
     this.xp = new XpTracker(config.levels, this.run.level, this.run.level_xp);
-    this.stats = computeStats(config.hero, this.book.mods(), this.xp.level, config.levels.growth_per_level);
+    this.bonds = new BondTracker(config.bonds);
+    this.bonds.restore(this.run.bond_members);
+    this.stats = computeStats(
+      config.hero,
+      this.allMods(),
+      this.xp.level,
+      config.levels.growth_per_level,
+    );
     this.run.max_hp = this.stats.max_hp;
     this.run.hp = Math.min(this.run.hp, this.run.max_hp);
 
@@ -159,13 +170,13 @@ export class BattleScene extends Phaser.Scene {
 
     // 地面装饰用本局种子铺开，同一局反复进出 Prep 位置不变
     const rng = mulberry32(this.run.seed ^ 0x9e3779b9);
-    const decals = ['decor-crack', 'decor-scuff', 'decor-scuff', 'decor-rune'];
-    for (let i = 0; i < 30; i += 1) {
+    const decals = ['decor-crack', 'decor-scuff', 'decor-scuff', 'decor-crack'];
+    for (let i = 0; i < 22; i += 1) {
       const key = decals[Math.floor(rng() * decals.length)]!;
       this.add
         .image(rng() * ARENA_W, rng() * ARENA_H, key)
         .setScale(2)
-        .setAlpha(key === 'decor-rune' ? 0.3 : 0.55)
+        .setAlpha(0.5)
         .setDepth(0.2)
         .setAngle(Math.floor(rng() * 4) * 90);
     }
@@ -271,6 +282,17 @@ export class BattleScene extends Phaser.Scene {
 
     this.killText = this.add
       .text(ARENA_W - 24, 22, '', { ...TEXT_STYLE, fontSize: '16px', color: COLORS.dim })
+      .setOrigin(1, 0)
+      .setDepth(21);
+
+    this.bondText = this.add
+      .text(ARENA_W - 24, 48, '', {
+        ...TEXT_STYLE,
+        fontSize: '13px',
+        color: COLORS.gold,
+        align: 'right',
+        lineSpacing: 4,
+      })
       .setOrigin(1, 0)
       .setDepth(21);
 
@@ -523,7 +545,7 @@ export class BattleScene extends Phaser.Scene {
       this.toast(`${def.name} 冷却中`);
       return;
     }
-    this.skillCd.set(id, def.cooldown_ms);
+    this.skillCd.set(id, def.cooldown_ms * (1 - evolutionPerks(config.evolutions, this.run.evolutions).skill_cd_pct / 100));
     switch (def.kind) {
       case 'dash':
         this.castDash(def);
@@ -796,17 +818,27 @@ export class BattleScene extends Phaser.Scene {
     this.refreshStats(true);
     for (let lv = before + 1; lv <= this.xp.level; lv += 1) {
       for (const skill of config.skills) {
-        if (skill.level === lv) this.toast(`解锁主动技能：${skill.name}`);
+        if (skill.level === lv) this.toast(`解锁主动技能：${skill.name}`, COLORS.accent);
       }
       if (config.levels.passive_offer_levels.includes(lv)) this.offerQueue.push(lv);
     }
     this.tryOpenOffer();
   }
 
+  /** 被动 + 羁绊 + 英雄进化 + 装备，统一汇总成属性修正。 */
+  private allMods() {
+    return sumMods(
+      this.book.mods(),
+      this.bonds.mods(),
+      evolutionMods(config.evolutions, this.run.evolutions),
+      equipmentMods(config.items, this.run.equipment),
+    );
+  }
+
   private refreshStats(healDelta: boolean): void {
     const next = computeStats(
       config.hero,
-      this.book.mods(),
+      this.allMods(),
       this.xp.level,
       config.levels.growth_per_level,
     );
@@ -827,27 +859,59 @@ export class BattleScene extends Phaser.Scene {
     this.player.setVelocity(0, 0);
     this.updateHud();
 
-    const candidates = rollPassives(config.passives, this.book.ids(), 3, Math.random);
+    const ownedIds = [...this.book.ids(), ...this.bonds.collectedIds()];
+    const candidates = rollPassives(config.passives, ownedIds, 3, Math.random);
     this.overlay = new LevelUpOverlay(this, {
       level,
       candidates,
       slots: this.book.list,
       refresh_cost: config.levels.refresh_cost,
       economy: this.run.economy,
-      onPick: (p) => {
-        this.book.add(p);
-        this.commitPassive();
-      },
-      onReplace: (slot, p) => {
-        this.book.replace(slot, p);
-        this.commitPassive();
-      },
+      canTake: (p) => this.bonds.willAbsorb(p.id) || !this.book.isFull,
+      onPick: (p) => this.acquirePassive(p),
+      onReplace: (slot, p) => this.acquirePassive(p, slot),
       onRefresh: () => {
         const cost = config.levels.refresh_cost;
         if (this.run.economy < cost) return null;
         this.run.economy -= cost;
-        return rollPassives(config.passives, this.book.ids(), 3, Math.random);
+        return rollPassives(config.passives, ownedIds, 3, Math.random);
       },
+    });
+  }
+
+  /** 拿被动：先过羁绊，触发进化时成员离开格子；否则进空格/替换。 */
+  private acquirePassive(passive: PassiveDef, slotIndex?: number): void {
+    const result = this.bonds.add(passive.id);
+
+    if (result.absorbed) {
+      for (const id of this.bonds.collectedIds()) this.book.removeById(id);
+    } else if (slotIndex !== undefined) {
+      this.book.replace(slotIndex, passive);
+    } else {
+      this.book.add(passive);
+    }
+
+    if (result.activation) this.onBondEvolved(result.activation);
+
+    this.run.bond_members = this.bonds.collectedIds();
+    this.commitPassive();
+  }
+
+  private onBondEvolved(activation: BondActivation): void {
+    const { bond, tier } = activation;
+    this.toast(`${bond.name}进化：${tier.name}`, COLORS.gold);
+    this.popText(this.player.x, this.player.y - 44, `${tier.name}！`, COLORS.gold);
+    this.cameras.main.flash(160, 90, 60, 140, false);
+
+    const ring = this.add.circle(this.player.x, this.player.y, 24, 0xffd166, 0.15);
+    ring.setStrokeStyle(4, 0xffd166, 0.9).setDepth(7);
+    this.tweens.add({
+      targets: ring,
+      radius: 220,
+      alpha: 0,
+      duration: 520,
+      ease: 'Quad.easeOut',
+      onComplete: () => ring.destroy(),
     });
   }
 
@@ -909,6 +973,15 @@ export class BattleScene extends Phaser.Scene {
     for (const kind of RESOURCE_ORDER) {
       this.resourceTexts[kind].setText(`${RESOURCE_META[kind].name} ${this.run[kind]}`);
     }
+
+    const bondLines = config.bonds
+      .filter((bond) => this.bonds.count(bond.id) > 0)
+      .map((bond) => {
+        const tier = this.bonds.activeTier(bond);
+        const progress = `${this.bonds.count(bond.id)}/${bond.members.length}★${bond.star}`;
+        return tier ? `${bond.name} ${progress} · ${tier.name}` : `${bond.name} ${progress}`;
+      });
+    this.bondText.setText(bondLines.join('\n'));
   }
 
   private hitEnemy(bullet: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite): void {
@@ -943,6 +1016,10 @@ export class BattleScene extends Phaser.Scene {
     ).color;
     enemy.disableBody(true, true);
     this.run.kills += 1;
+    const healOnKill = evolutionPerks(config.evolutions, this.run.evolutions).heal_on_kill;
+    if (healOnKill > 0) {
+      this.run.hp = Math.min(this.run.max_hp, this.run.hp + healOnKill);
+    }
     this.burst(x, y, color);
     this.spawnShards(x, y, color);
   }
@@ -1004,9 +1081,9 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  private toast(message: string): void {
+  private toast(message: string, color: string = COLORS.danger): void {
     if (!this.toastText) return;
-    this.toastText.setText(message).setAlpha(1);
+    this.toastText.setText(message).setColor(color).setAlpha(1);
     this.tweens.killTweensOf(this.toastText);
     this.tweens.add({ targets: this.toastText, alpha: 0, delay: 800, duration: 450 });
   }

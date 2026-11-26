@@ -9,10 +9,20 @@ const VIGNETTE_H = 144;
 /** 战斗地面：可平铺的石板贴图 + 地面装饰 + 暗角。全部程序化生成，无外部素材。 */
 export function buildTiles(scene: Phaser.Scene): void {
   compileCanvas(scene, 'floor-a', TILE, TILE, (ctx) => {
-    drawSlab(ctx, mulberry32(0x51a7), { base: '#141a24', slab: '#182030', grout: '#0b0f16' });
+    drawSlab(ctx, mulberry32(0x51a7), {
+      base: '#0d1219',
+      slab: '#1b2434',
+      grout: '#080b11',
+      tones: ['#1b2434', '#1f2a3c', '#172030', '#222d41'],
+    });
   });
   compileCanvas(scene, 'floor-b', TILE, TILE, (ctx) => {
-    drawSlab(ctx, mulberry32(0x2c93), { base: '#121821', slab: '#161d2a', grout: '#0a0e15' });
+    drawSlab(ctx, mulberry32(0x2c93), {
+      base: '#0c1017',
+      slab: '#19212f',
+      grout: '#070a0f',
+      tones: ['#19212f', '#1c2534', '#151d29', '#1f2938'],
+    });
   });
 
   compileCanvas(scene, 'decor-crack', TILE, TILE, (ctx) => {
@@ -58,10 +68,10 @@ export function buildTiles(scene: Phaser.Scene): void {
     VIGNETTE_W,
     VIGNETTE_H,
     (ctx, w, h) => {
-      const gradient = ctx.createRadialGradient(w / 2, h / 2, h * 0.22, w / 2, h / 2, h * 0.82);
+      const gradient = ctx.createRadialGradient(w / 2, h / 2, h * 0.24, w / 2, h / 2, h * 0.92);
       gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      gradient.addColorStop(0.62, 'rgba(0, 0, 0, 0.28)');
-      gradient.addColorStop(1, 'rgba(0, 0, 0, 0.72)');
+      gradient.addColorStop(0.62, 'rgba(0, 0, 0, 0.2)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0.58)');
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, w, h);
     },
@@ -73,29 +83,30 @@ interface SlabOptions {
   base: string;
   slab: string;
   grout: string;
+  tones: readonly string[];
 }
 
 function drawSlab(ctx: CanvasRenderingContext2D, rng: () => number, opts: SlabOptions): void {
   ctx.fillStyle = opts.base;
   ctx.fillRect(0, 0, TILE, TILE);
 
-  // 石板本体（留 1px 灰缝）
-  ctx.fillStyle = opts.slab;
+  // 石板本体：每块随机取一个色调，避免大片同色
+  ctx.fillStyle = opts.tones[Math.floor(rng() * opts.tones.length)] ?? opts.slab;
   ctx.fillRect(1, 1, TILE - 2, TILE - 2);
 
   // 上/左受光、下/右压暗，做出微微的立体感
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.045)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
   ctx.fillRect(1, 1, TILE - 2, 1);
   ctx.fillRect(1, 1, 1, TILE - 2);
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.16)';
   ctx.fillRect(1, TILE - 2, TILE - 2, 1);
   ctx.fillRect(TILE - 2, 1, 1, TILE - 2);
 
   // 随机麻点，避免大色块显得死板
-  for (let i = 0; i < 80; i += 1) {
+  for (let i = 0; i < 90; i += 1) {
     const x = 2 + Math.floor(rng() * (TILE - 4));
     const y = 2 + Math.floor(rng() * (TILE - 4));
-    ctx.fillStyle = rng() > 0.5 ? 'rgba(255, 255, 255, 0.035)' : 'rgba(0, 0, 0, 0.22)';
+    ctx.fillStyle = rng() > 0.5 ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.28)';
     ctx.fillRect(x, y, 1, 1);
   }
 

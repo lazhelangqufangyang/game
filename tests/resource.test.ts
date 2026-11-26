@@ -14,6 +14,10 @@ const run = (): RunState => ({
   level: 1,
   level_xp: 0,
   passives: [],
+  bond_members: [],
+  evolutions: [],
+  equipment: [],
+  shop_offers: [],
 });
 
 describe('资源结算', () => {
