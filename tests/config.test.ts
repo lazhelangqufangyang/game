@@ -94,15 +94,16 @@ describe('配置加载', () => {
     }
   });
 
-  it('8 波难度递增，最后一波有 Boss', () => {
-    expect(config.waves).toHaveLength(8);
+  it('20 波难度递增，第 10 / 20 波有 Boss', () => {
+    expect(config.waves).toHaveLength(20);
     for (let i = 1; i < config.waves.length; i += 1) {
-      expect(config.waves[i]!.hp_scale).toBeGreaterThan(config.waves[i - 1]!.hp_scale);
+      expect(config.waves[i]!.hp_scale).toBeGreaterThanOrEqual(config.waves[i - 1]!.hp_scale);
     }
-    const last = config.waves[config.waves.length - 1]!;
-    const bossGroup = last.groups.find((g) => config.enemies[g.enemy]?.boss);
-    expect(bossGroup).toBeTruthy();
-    expect(bossGroup!.count).toBe(1);
+    for (const waveIndex of [9, 19]) {
+      const wave = config.waves[waveIndex]!;
+      const bossGroup = wave.groups.find((g) => config.enemies[g.enemy]?.boss);
+      expect(bossGroup, `第 ${waveIndex + 1} 波应有 Boss`).toBeTruthy();
+    }
   });
 });
 

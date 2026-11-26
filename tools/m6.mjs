@@ -28,7 +28,7 @@ const saved = await page.evaluate(() => {
 });
 console.log('save after prep', saved);
 
-// 打一波、买东西，然后刷新页面验证续档
+// 打一波、改状态，然后刷新页面验证续档
 await page.keyboard.press('Space');
 await sleep(1200);
 await page.evaluate(() => {
@@ -36,7 +36,8 @@ await page.evaluate(() => {
   run.economy = 50;
   run.wave_index = 2;
   run.hp = 77;
-  run.equipment = ['boots'];
+  run.equipment = ['shadow_blade'];
+  run.items = ['shadow_blade'];
   window.__game.scene.keys.Battle.scene.start('Prep');
 });
 await sleep(900);
@@ -44,18 +45,18 @@ await page.reload({ waitUntil: 'networkidle0' });
 await sleep(1000);
 const resumed = await page.evaluate(() => {
   const run = window.__game.registry.get('run');
-  return { wave: run.wave_index, hp: run.hp, equipment: run.equipment };
+  return { wave: run.wave_index, hp: run.hp, equipment: run.equipment, items: run.items };
 });
 console.log('after reload', resumed);
 await page.screenshot({ path: `${OUT}/70-resumed.png` });
 
-// 跳到 Boss 波
+// 跳到最后一波（第 20 波 Boss 双守关者）
 await page.evaluate(() => {
   const run = window.__game.registry.get('run');
-  run.wave_index = 7;
+  run.wave_index = 19;
   window.__game.scene.keys.Prep.scene.start('Battle');
 });
-await sleep(2200);
+await sleep(2400);
 const boss = await page.evaluate(() => {
   const s = window.__game.scene.keys.Battle;
   const b = s.bossSprite;
@@ -70,11 +71,6 @@ console.log('boss wave', boss);
 await page.screenshot({ path: `${OUT}/71-boss.png` });
 
 // 打几下看伤害数字
-await page.evaluate(() => {
-  const s = window.__game.scene.keys.Battle;
-  s.player.x = 640;
-  s.player.y = 360;
-});
 await sleep(1200);
 await page.screenshot({ path: `${OUT}/72-boss-fight.png` });
 

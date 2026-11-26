@@ -42,6 +42,7 @@ export function parseRun(raw: string | null): RunState | null {
       'bond_members',
       'evolutions',
       'equipment',
+      'items',
       'shop_offers',
     ];
     for (const key of arrays) {

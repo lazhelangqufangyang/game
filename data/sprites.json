@@ -180,6 +180,37 @@
       "................"
     ]
   },
+  "warden": {
+    "palette": { "a": "#ffd166", "w": "#ffe9f0", "k": "#2a0410" },
+    "rows": [
+      "..........................",
+      "..........................",
+      "....o..............o......",
+      "...obo............obo.....",
+      "...obbo..........obbo.....",
+      "....oooooooooooooooo......",
+      "...obbbbbbbbbbbbbbbbo.....",
+      "...ollllllllllllllllo.....",
+      "...ollwwllllllllwwllo.....",
+      "...ollwkllllllllkwllo.....",
+      "...ollllllllllllllllo.....",
+      "...obddddddddddddddbo.....",
+      "...obbbbbbbbbbbbbbbbo.....",
+      "..obbbbbbbbbbbbbbbbbbo....",
+      "..obbbbbbbbbbbbbbbbbbo....",
+      "..obbbbaaaaaaaabbbbbbo....",
+      "..obbbbbbbbbbbbbbbbbbo....",
+      "..obbbbbbbbbbbbbbbbbbo....",
+      "...obdddddddddddddddbo....",
+      "....obbbbbbbbbbbbbbbbo....",
+      ".....obbbbbbbbbbbbbbo.....",
+      "......oooooooooooooo......",
+      "..ooobbo..........obbooo..",
+      "..ooo..............ooo....",
+      "..........................",
+      ".........................."
+    ]
+  },
   "bullet": {
     "palette": { "o": "#8a6a1f", "b": "#ffd166", "h": "#fff6d0" },
     "rows": [

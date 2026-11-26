@@ -1,18 +1,35 @@
 import Phaser from 'phaser';
+import { buildArena } from '../assets/arena';
 import { buildActorTextures, buildAnimations } from '../assets/sprites';
 import { config } from '../config';
 import { RESOURCE_META, RESOURCE_ORDER } from '../core/resources';
 import { createRun } from '../core/run';
 import { loadRun } from '../core/save';
 
+/**
+ * 可选：把任意一张 1280×720 的插画放到 `src/assets/arena.png`，就会直接拿它当战斗背景。
+ * 用 import.meta.glob 在构建期解析，没放图时不会产生任何网络请求（也就不会有 404）。
+ */
+const ARENA_OVERRIDES = import.meta.glob('../assets/arena*.png', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('Boot');
   }
 
+  preload(): void {
+    const override = Object.values(ARENA_OVERRIDES)[0];
+    if (override) this.load.image('arena-src', override);
+  }
+
   create(): void {
     buildActorTextures(this, config);
     buildAnimations(this);
+    this.registry.set('arenaKey', buildArena(this));
     this.ensureFallbacks();
     this.ensureParticles();
 

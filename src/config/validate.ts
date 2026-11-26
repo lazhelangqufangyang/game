@@ -384,21 +384,50 @@ export function parseItems(raw: unknown): ItemDef[] {
     seen.add(id);
 
     const kind = str(o.kind, `${path}.kind`);
-    if (kind !== 'consumable' && kind !== 'equipment') {
-      fail(`${path}.kind`, `应为 consumable / equipment，实际为 "${kind}"`);
+    if (kind !== 'consumable' && kind !== 'stat' && kind !== 'equipment') {
+      fail(`${path}.kind`, `应为 consumable / stat / equipment，实际为 "${kind}"`);
     }
     if (kind === 'consumable' && o.heal === undefined) {
       fail(`${path}.heal`, '消耗品必须配置效果（heal）');
+    }
+
+    let recipe: string[] | undefined;
+    if (o.recipe !== undefined) {
+      if (kind !== 'equipment') fail(`${path}.recipe`, '只有 equipment 可以有合成配方');
+      recipe = asArray(o.recipe, `${path}.recipe`).map((r, ri) =>
+        str(r, `${path}.recipe[${ri}]`),
+      );
+      if (recipe.length < 2) fail(`${path}.recipe`, '配方至少需要 2 个组件');
+    }
+
+    let active: ItemDef['active'];
+    if (o.active !== undefined) {
+      const ap = `${path}.active`;
+      const ao = asObject(o.active, ap);
+      const activeKind = str(ao.kind, `${ap}.kind`);
+      if (activeKind !== 'dash' && activeKind !== 'shield') {
+        fail(`${ap}.kind`, `应为 dash / shield，实际为 "${activeKind}"`);
+      }
+      active = {
+        kind: activeKind,
+        cooldown_ms: num(ao.cooldown_ms, `${ap}.cooldown_ms`, { min: 1 }),
+        power: num(ao.power, `${ap}.power`, { min: 1 }),
+        duration_ms:
+          ao.duration_ms === undefined ? undefined : num(ao.duration_ms, `${ap}.duration_ms`, { min: 1 }),
+      };
+      if (kind !== 'equipment') fail(`${ap}`, '只有 equipment 可以有主动效果');
     }
 
     return {
       id,
       name: str(o.name, `${path}.name`),
       desc: str(o.desc, `${path}.desc`),
-      price: num(o.price, `${path}.price`, { min: 1 }),
+      price: num(o.price, `${path}.price`, { min: 0 }),
       kind: kind as ItemDef['kind'],
       mods: o.mods === undefined ? undefined : parseMods(o.mods, `${path}.mods`),
       heal: o.heal === undefined ? undefined : num(o.heal, `${path}.heal`, { min: 1 }),
+      recipe,
+      active,
     };
   });
 }

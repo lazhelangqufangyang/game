@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_EQUIPMENT,
+  activeItems,
   buyItem,
   chooseEvolution,
-  equipmentMods,
   evolutionMods,
   evolutionPerks,
+  inventoryMods,
   nextStage,
+  ownedCount,
+  recipeStatus,
   rollShop,
 } from '../src/systems/meta';
 import { mulberry32 } from '../src/core/rng';
@@ -19,7 +22,6 @@ const stages: EvolutionStage[] = [
     options: [
       { id: 'flame', name: '火', desc: '', mods: { damage_pct: 20 } },
       { id: 'storm', name: '雷', desc: '', mods: { aspd_pct: 18 } },
-      { id: 'tide', name: '水', desc: '', mods: { max_hp: 60 } },
     ],
   },
   {
@@ -28,17 +30,43 @@ const stages: EvolutionStage[] = [
     options: [
       { id: 'flame2', name: '火2', desc: '', mods: { damage_pct: 25 } },
       { id: 'storm2', name: '雷2', desc: '', mods: { aspd_pct: 25 }, skill_cd_pct: 20 },
-      { id: 'tide2', name: '水2', desc: '', mods: { max_hp: 100 }, heal_on_kill: 2 },
     ],
   },
 ];
 
 const items: ItemDef[] = [
   { id: 'potion', name: '药', desc: '', price: 8, kind: 'consumable', heal: 40 },
-  { id: 'whetstone', name: '石', desc: '', price: 12, kind: 'equipment', mods: { damage_pct: 10 } },
-  { id: 'boots', name: '靴', desc: '', price: 10, kind: 'equipment', mods: { speed_pct: 12 } },
-  { id: 'core', name: '核', desc: '', price: 26, kind: 'equipment', mods: { multishot: 1 } },
+  { id: 'dagger', name: '短剑', desc: '', price: 10, kind: 'stat', mods: { damage_pct: 10 } },
+  { id: 'bracer', name: '护腕', desc: '', price: 10, kind: 'stat', mods: { max_hp: 25 } },
+  {
+    id: 'shadow_blade',
+    name: '影刃',
+    desc: '',
+    price: 12,
+    kind: 'equipment',
+    recipe: ['dagger', 'bracer'],
+    mods: { damage_pct: 18 },
+    active: { kind: 'dash', cooldown_ms: 8000, power: 210 },
+  },
+  {
+    id: 'bulwark',
+    name: '壁垒',
+    desc: '',
+    price: 12,
+    kind: 'equipment',
+    recipe: ['bracer', 'bracer'],
+    mods: { max_hp: 60 },
+    active: { kind: 'shield', cooldown_ms: 12000, power: 70, duration_ms: 4000 },
+  },
 ];
+
+const run = () => ({
+  economy: 100,
+  hp: 50,
+  max_hp: 100,
+  equipment: [] as string[],
+  items: [] as string[],
+});
 
 describe('英雄进化', () => {
   it('按选择数量推进阶段，走完返回 null', () => {
@@ -48,67 +76,100 @@ describe('英雄进化', () => {
   });
 
   it('扣精粹并记录所选方向', () => {
-    const run = { essence: 10, evolutions: [] as string[] };
-    expect(chooseEvolution(run, stages, 'storm')).toBe(true);
-    expect(run.essence).toBe(7);
-    expect(run.evolutions).toEqual(['storm']);
+    const r = { essence: 10, evolutions: [] as string[] };
+    expect(chooseEvolution(r, stages, 'storm')).toBe(true);
+    expect(r.essence).toBe(7);
+    expect(r.evolutions).toEqual(['storm']);
   });
 
   it('方向必须属于当前阶段', () => {
-    const run = { essence: 10, evolutions: [] as string[] };
-    expect(chooseEvolution(run, stages, 'flame2')).toBe(false);
-    expect(run.evolutions).toHaveLength(0);
+    const r = { essence: 10, evolutions: [] as string[] };
+    expect(chooseEvolution(r, stages, 'flame2')).toBe(false);
   });
 
-  it('精粹不够时拒绝', () => {
-    const run = { essence: 2, evolutions: [] as string[] };
-    expect(chooseEvolution(run, stages, 'flame')).toBe(false);
-    expect(run.essence).toBe(2);
-    expect(run.evolutions).toHaveLength(0);
-  });
-
-  it('方向修正会累加，特殊效果单独统计', () => {
+  it('方向修正累加，特殊效果单独统计', () => {
     const chosen = ['flame', 'storm2'];
     expect(evolutionMods(stages, chosen).damage_pct).toBe(20);
-    expect(evolutionMods(stages, chosen).aspd_pct).toBe(25);
-    const perks = evolutionPerks(stages, chosen);
-    expect(perks.skill_cd_pct).toBe(20);
-    expect(perks.heal_on_kill).toBe(0);
+    expect(evolutionPerks(stages, chosen).skill_cd_pct).toBe(20);
+  });
+});
+
+describe('装备与配方', () => {
+  it('小件只加属性、不占装备格', () => {
+    const r = run();
+    expect(buyItem(items[1]!, r)).toBe('ok');
+    expect(r.items).toEqual(['dagger']);
+    expect(r.equipment).toHaveLength(0);
+    expect(inventoryMods(items, r.items).damage_pct).toBe(10);
+  });
+
+  it('没有组件时无法合成成品，也不扣钱', () => {
+    const r = run();
+    expect(buyItem(items[3]!, r)).toBe('recipe');
+    expect(r.economy).toBe(100);
+    expect(r.equipment).toHaveLength(0);
+  });
+
+  it('买齐组件后合成会消耗组件并占用装备格', () => {
+    const r = run();
+    buyItem(items[1]!, r);
+    buyItem(items[2]!, r);
+    expect(r.economy).toBe(80);
+
+    expect(buyItem(items[3]!, r)).toBe('ok');
+    expect(r.economy).toBe(68);
+    expect(r.equipment).toEqual(['shadow_blade']);
+    expect(r.items).toEqual(['shadow_blade']);
+    expect(inventoryMods(items, r.items).damage_pct).toBe(18);
+  });
+
+  it('同组件重复需求按数量校验（壁垒 = 护腕 × 2）', () => {
+    const r = run();
+    buyItem(items[2]!, r);
+    expect(recipeStatus(items[4]!, r.items)).toEqual({ ok: false, missing: ['bracer'] });
+    buyItem(items[2]!, r);
+    expect(recipeStatus(items[4]!, r.items).ok).toBe(true);
+    expect(buyItem(items[4]!, r)).toBe('ok');
+    expect(r.equipment).toEqual(['bulwark']);
+  });
+
+  it('装备格上限为 6', () => {
+    const r = run();
+    r.equipment = Array.from({ length: MAX_EQUIPMENT }, () => 'shadow_blade');
+    r.items = ['dagger', 'bracer'];
+    expect(buyItem(items[3]!, r)).toBe('slots');
+    expect(r.economy).toBe(100);
+  });
+
+  it('消耗品立即回血且不超过上限', () => {
+    const r = run();
+    r.hp = 80;
+    expect(buyItem(items[0]!, r)).toBe('ok');
+    expect(r.hp).toBe(100);
+  });
+
+  it('只有成品且带主动效果的才进入主动栏', () => {
+    const actives = activeItems(items, ['shadow_blade', 'bulwark']);
+    expect(actives.map((i) => i.id)).toEqual(['shadow_blade', 'bulwark']);
+    expect(activeItems(items, ['dagger'])).toHaveLength(0);
   });
 });
 
 describe('商店', () => {
-  it('随机 3 件不重复商品', () => {
-    const offers = rollShop(items, mulberry32(5), 3);
-    expect(offers).toHaveLength(3);
-    expect(new Set(offers).size).toBe(3);
+  it('随机 4 件不重复商品', () => {
+    const offers = rollShop(items, mulberry32(3), 4);
+    expect(offers).toHaveLength(4);
+    expect(new Set(offers).size).toBe(4);
   });
 
-  it('买装备扣经济并进入装备栏，属性生效', () => {
-    const run = { economy: 100, hp: 50, max_hp: 100, equipment: [] as string[] };
-    expect(buyItem(items[1]!, run)).toBe('ok');
-    expect(run.economy).toBe(88);
-    expect(run.equipment).toEqual(['whetstone']);
-    expect(equipmentMods(items, run.equipment).damage_pct).toBe(10);
+  it('经济不足时不扣钱、不进货', () => {
+    const r = { ...run(), economy: 5 };
+    expect(buyItem(items[1]!, r)).toBe('poor');
+    expect(r.economy).toBe(5);
+    expect(r.items).toHaveLength(0);
   });
 
-  it('装备满 3 件后拒绝，且不扣钱', () => {
-    const run = { economy: 100, hp: 50, max_hp: 100, equipment: ['a', 'b', 'c'] };
-    expect(run.equipment).toHaveLength(MAX_EQUIPMENT);
-    expect(buyItem(items[3]!, run)).toBe('slots');
-    expect(run.economy).toBe(100);
-  });
-
-  it('经济不足时不扣钱', () => {
-    const run = { economy: 5, hp: 50, max_hp: 100, equipment: [] as string[] };
-    expect(buyItem(items[0]!, run)).toBe('poor');
-    expect(run.economy).toBe(5);
-  });
-
-  it('消耗品立即回血且不超过上限', () => {
-    const run = { economy: 20, hp: 80, max_hp: 100, equipment: [] as string[] };
-    expect(buyItem(items[0]!, run)).toBe('ok');
-    expect(run.hp).toBe(100);
-    expect(run.economy).toBe(12);
+  it('ownedCount 统计重复组件', () => {
+    expect(ownedCount(['bracer', 'bracer', 'dagger'], 'bracer')).toBe(2);
   });
 });

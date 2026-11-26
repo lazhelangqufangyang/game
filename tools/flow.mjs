@@ -38,9 +38,9 @@ const clearWave = () =>
     return 'cleared';
   });
 
-// 从头打到 Boss 波，验证完整 8 波流转
+// 从头打到第 20 波，验证完整波次流转
 let wave = 0;
-while (wave < 10) {
+while (wave < 25) {
   const scene = await sceneKey();
   if (scene.includes('Result')) break;
   if (scene.includes('Prep')) {

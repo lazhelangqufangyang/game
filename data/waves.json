@@ -13,8 +13,8 @@
       { "enemy": "grunt", "count": 6, "interval_ms": 620 },
       { "enemy": "runner", "count": 4, "interval_ms": 480 }
     ],
-    "hp_scale": 1.15,
-    "speed_scale": 1.03
+    "hp_scale": 1.1,
+    "speed_scale": 1.02
   },
   {
     "index": 3,
@@ -23,8 +23,8 @@
       { "enemy": "grunt", "count": 8, "interval_ms": 520 },
       { "enemy": "brute", "count": 2, "interval_ms": 1800 }
     ],
-    "hp_scale": 1.3,
-    "speed_scale": 1.06
+    "hp_scale": 1.2,
+    "speed_scale": 1.04
   },
   {
     "index": 4,
@@ -33,8 +33,8 @@
       { "enemy": "runner", "count": 8, "interval_ms": 380 },
       { "enemy": "grunt", "count": 6, "interval_ms": 600 }
     ],
-    "hp_scale": 1.45,
-    "speed_scale": 1.09
+    "hp_scale": 1.3,
+    "speed_scale": 1.06
   },
   {
     "index": 5,
@@ -43,8 +43,8 @@
       { "enemy": "grunt", "count": 10, "interval_ms": 450 },
       { "enemy": "brute", "count": 3, "interval_ms": 1500 }
     ],
-    "hp_scale": 1.6,
-    "speed_scale": 1.12
+    "hp_scale": 1.4,
+    "speed_scale": 1.08
   },
   {
     "index": 6,
@@ -53,8 +53,8 @@
       { "enemy": "runner", "count": 10, "interval_ms": 320 },
       { "enemy": "brute", "count": 4, "interval_ms": 1300 }
     ],
-    "hp_scale": 1.75,
-    "speed_scale": 1.15
+    "hp_scale": 1.5,
+    "speed_scale": 1.1
   },
   {
     "index": 7,
@@ -64,18 +64,144 @@
       { "enemy": "runner", "count": 6, "interval_ms": 350 },
       { "enemy": "brute", "count": 5, "interval_ms": 1200 }
     ],
-    "hp_scale": 1.9,
-    "speed_scale": 1.18
+    "hp_scale": 1.6,
+    "speed_scale": 1.12
   },
   {
     "index": 8,
     "direction": "random",
     "groups": [
+      { "enemy": "runner", "count": 12, "interval_ms": 300 },
+      { "enemy": "brute", "count": 6, "interval_ms": 1100 }
+    ],
+    "hp_scale": 1.7,
+    "speed_scale": 1.14
+  },
+  {
+    "index": 9,
+    "direction": "random",
+    "groups": [
+      { "enemy": "grunt", "count": 14, "interval_ms": 360 },
+      { "enemy": "runner", "count": 8, "interval_ms": 320 },
+      { "enemy": "brute", "count": 6, "interval_ms": 1000 }
+    ],
+    "hp_scale": 1.8,
+    "speed_scale": 1.16
+  },
+  {
+    "index": 10,
+    "direction": "random",
+    "groups": [
       { "enemy": "warden", "count": 1, "interval_ms": 400 },
-      { "enemy": "grunt", "count": 8, "interval_ms": 900 },
-      { "enemy": "runner", "count": 6, "interval_ms": 600 }
+      { "enemy": "runner", "count": 8, "interval_ms": 500 }
     ],
     "hp_scale": 2,
+    "speed_scale": 1.18
+  },
+  {
+    "index": 11,
+    "direction": "random",
+    "groups": [
+      { "enemy": "grunt", "count": 14, "interval_ms": 340 },
+      { "enemy": "brute", "count": 7, "interval_ms": 950 }
+    ],
+    "hp_scale": 2.1,
     "speed_scale": 1.2
+  },
+  {
+    "index": 12,
+    "direction": "random",
+    "groups": [
+      { "enemy": "runner", "count": 14, "interval_ms": 280 },
+      { "enemy": "brute", "count": 8, "interval_ms": 900 }
+    ],
+    "hp_scale": 2.2,
+    "speed_scale": 1.22
+  },
+  {
+    "index": 13,
+    "direction": "random",
+    "groups": [
+      { "enemy": "grunt", "count": 16, "interval_ms": 320 },
+      { "enemy": "runner", "count": 10, "interval_ms": 280 },
+      { "enemy": "brute", "count": 8, "interval_ms": 850 }
+    ],
+    "hp_scale": 2.3,
+    "speed_scale": 1.24
+  },
+  {
+    "index": 14,
+    "direction": "random",
+    "groups": [
+      { "enemy": "runner", "count": 16, "interval_ms": 260 },
+      { "enemy": "brute", "count": 10, "interval_ms": 800 }
+    ],
+    "hp_scale": 2.4,
+    "speed_scale": 1.26
+  },
+  {
+    "index": 15,
+    "direction": "random",
+    "groups": [
+      { "enemy": "grunt", "count": 18, "interval_ms": 300 },
+      { "enemy": "runner", "count": 12, "interval_ms": 250 },
+      { "enemy": "brute", "count": 10, "interval_ms": 780 }
+    ],
+    "hp_scale": 2.5,
+    "speed_scale": 1.28
+  },
+  {
+    "index": 16,
+    "direction": "random",
+    "groups": [
+      { "enemy": "brute", "count": 12, "interval_ms": 700 },
+      { "enemy": "runner", "count": 16, "interval_ms": 240 }
+    ],
+    "hp_scale": 2.6,
+    "speed_scale": 1.3
+  },
+  {
+    "index": 17,
+    "direction": "random",
+    "groups": [
+      { "enemy": "grunt", "count": 20, "interval_ms": 280 },
+      { "enemy": "brute", "count": 12, "interval_ms": 700 },
+      { "enemy": "runner", "count": 14, "interval_ms": 240 }
+    ],
+    "hp_scale": 2.7,
+    "speed_scale": 1.32
+  },
+  {
+    "index": 18,
+    "direction": "random",
+    "groups": [
+      { "enemy": "warden", "count": 1, "interval_ms": 400 },
+      { "enemy": "brute", "count": 10, "interval_ms": 750 },
+      { "enemy": "runner", "count": 12, "interval_ms": 260 }
+    ],
+    "hp_scale": 2.8,
+    "speed_scale": 1.34
+  },
+  {
+    "index": 19,
+    "direction": "random",
+    "groups": [
+      { "enemy": "grunt", "count": 22, "interval_ms": 260 },
+      { "enemy": "brute", "count": 14, "interval_ms": 650 },
+      { "enemy": "runner", "count": 18, "interval_ms": 220 }
+    ],
+    "hp_scale": 3,
+    "speed_scale": 1.36
+  },
+  {
+    "index": 20,
+    "direction": "random",
+    "groups": [
+      { "enemy": "warden", "count": 2, "interval_ms": 900 },
+      { "enemy": "brute", "count": 12, "interval_ms": 650 },
+      { "enemy": "runner", "count": 16, "interval_ms": 220 }
+    ],
+    "hp_scale": 3.2,
+    "speed_scale": 1.4
   }
 ]

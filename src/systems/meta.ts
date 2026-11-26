@@ -1,7 +1,8 @@
 import type { EvolutionOption, EvolutionStage, ItemDef, Mods, RunState } from '../core/types';
 import { addMods, emptyMods } from './passives';
 
-export const MAX_EQUIPMENT = 3;
+/** 只有带特殊效果的成品装备占格；纯属性小件不占格。 */
+export const MAX_EQUIPMENT = 6;
 
 function optionIndex(stages: readonly EvolutionStage[]): Map<string, EvolutionOption> {
   const map = new Map<string, EvolutionOption>();
@@ -9,7 +10,6 @@ function optionIndex(stages: readonly EvolutionStage[]): Map<string, EvolutionOp
   return map;
 }
 
-/** 下一个可进化的阶段；已走完全部阶段返回 null。 */
 export function nextStage(
   stages: readonly EvolutionStage[],
   chosen: readonly string[],
@@ -43,7 +43,6 @@ export function evolutionPerks(
   return { heal_on_kill: heal, skill_cd_pct: Math.min(80, cd) };
 }
 
-/** 进化：扣精粹并记录所选方向；精粹不够 / 方向不属于当前阶段返回 false。 */
 export function chooseEvolution(
   run: Pick<RunState, 'essence' | 'evolutions'>,
   stages: readonly EvolutionStage[],
@@ -59,17 +58,86 @@ export function chooseEvolution(
   return true;
 }
 
-export function equipmentMods(items: readonly ItemDef[], ids: readonly string[]): Mods {
+export function findItem(items: readonly ItemDef[], id: string): ItemDef | undefined {
+  return items.find((item) => item.id === id);
+}
+
+/** 所有已拥有物品（小件 + 成品）的属性总和。 */
+export function inventoryMods(items: readonly ItemDef[], owned: readonly string[]): Mods {
   const mods = emptyMods();
-  for (const id of ids) {
-    const item = items.find((i) => i.id === id);
+  for (const id of owned) {
+    const item = findItem(items, id);
     if (item?.mods) addMods(mods, item.mods);
   }
   return mods;
 }
 
+export function ownedCount(owned: readonly string[], id: string): number {
+  return owned.filter((x) => x === id).length;
+}
+
+export function recipeStatus(
+  item: ItemDef,
+  owned: readonly string[],
+): { ok: boolean; missing: string[] } {
+  const missing: string[] = [];
+  const pool = [...owned];
+  for (const component of item.recipe ?? []) {
+    const index = pool.indexOf(component);
+    if (index < 0) {
+      missing.push(component);
+    } else {
+      pool.splice(index, 1);
+    }
+  }
+  return { ok: missing.length === 0, missing };
+}
+
+/** 已装备、且带主动效果的成品（战斗内按 4/5 释放）。 */
+export function activeItems(items: readonly ItemDef[], equipment: readonly string[]): ItemDef[] {
+  return equipment
+    .map((id) => findItem(items, id))
+    .filter((item): item is ItemDef => !!item && !!item.active);
+}
+
+export type BuyResult = 'ok' | 'poor' | 'slots' | 'recipe';
+
+export function buyItem(
+  item: ItemDef,
+  run: Pick<RunState, 'economy' | 'hp' | 'max_hp' | 'equipment' | 'items'>,
+): BuyResult {
+  if (run.economy < item.price) return 'poor';
+
+  if (item.kind === 'consumable') {
+    run.economy -= item.price;
+    if (item.heal) run.hp = Math.min(run.max_hp, run.hp + item.heal);
+    return 'ok';
+  }
+
+  if (item.kind === 'stat') {
+    run.economy -= item.price;
+    run.items = [...run.items, item.id];
+    return 'ok';
+  }
+
+  // 成品装备：需要配方组件 + 有空装备格
+  if (run.equipment.length >= MAX_EQUIPMENT) return 'slots';
+  const status = recipeStatus(item, run.items);
+  if (!status.ok) return 'recipe';
+
+  run.economy -= item.price;
+  const remaining = [...run.items];
+  for (const component of item.recipe ?? []) {
+    const index = remaining.indexOf(component);
+    if (index >= 0) remaining.splice(index, 1);
+  }
+  run.items = [...remaining, item.id];
+  run.equipment = [...run.equipment, item.id];
+  return 'ok';
+}
+
 /** 每波随机 3 件商品，同一波内不重复。 */
-export function rollShop(items: readonly ItemDef[], rng: () => number, count = 3): string[] {
+export function rollShop(items: readonly ItemDef[], rng: () => number, count = 4): string[] {
   const pool = items.slice();
   const picked: string[] = [];
   while (pool.length > 0 && picked.length < count) {
@@ -78,22 +146,4 @@ export function rollShop(items: readonly ItemDef[], rng: () => number, count = 3
     if (item) picked.push(item.id);
   }
   return picked;
-}
-
-export type BuyResult = 'ok' | 'poor' | 'slots';
-
-export function buyItem(
-  item: ItemDef,
-  run: Pick<RunState, 'economy' | 'hp' | 'max_hp' | 'equipment'>,
-): BuyResult {
-  if (run.economy < item.price) return 'poor';
-  if (item.kind === 'equipment' && run.equipment.length >= MAX_EQUIPMENT) return 'slots';
-
-  run.economy -= item.price;
-  if (item.kind === 'equipment') {
-    run.equipment = [...run.equipment, item.id];
-  } else if (item.heal) {
-    run.hp = Math.min(run.max_hp, run.hp + item.heal);
-  }
-  return 'ok';
 }

@@ -17,6 +17,7 @@ const run = (): RunState => ({
   bond_members: [],
   evolutions: [],
   equipment: [],
+  items: [],
   shop_offers: [],
 });
 

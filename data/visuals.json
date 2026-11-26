@@ -9,6 +9,7 @@
   "enemy-grunt": { "scale": 2.5, "shadow": 0, "bob": 0.08, "flip": true, "rotate": false },
   "enemy-runner": { "scale": 2.5, "shadow": 0, "bob": 0.12, "flip": true, "rotate": false },
   "enemy-brute": { "scale": 3, "shadow": 0, "bob": 0.05, "flip": true, "rotate": false },
+  "enemy-warden": { "scale": 2.5, "shadow": 0, "bob": 0.035, "flip": true, "rotate": false },
   "summon-coffer": { "scale": 2.5, "shadow": 0, "bob": 0.07, "flip": true, "rotate": false },
   "summon-scholar": { "scale": 2.5, "shadow": 0, "bob": 0.09, "flip": true, "rotate": false },
   "summon-wisp": { "scale": 2.5, "shadow": 0, "bob": 0.09, "flip": true, "rotate": false },

@@ -10,7 +10,10 @@ import {
   MAX_EQUIPMENT,
   buyItem,
   chooseEvolution,
+  findItem,
   nextStage,
+  ownedCount,
+  recipeStatus,
   rollShop,
 } from '../systems/meta';
 import { DIRECTION_LABEL, resolveDirection } from '../systems/wave';
@@ -22,6 +25,9 @@ const PANEL_TOP = 56;
 const PANEL_BOTTOM = 664;
 const LEFT_W = 580;
 const RIGHT_W = 612;
+
+const EVO_H = 230;
+const SHOP_TOP = PANEL_TOP + EVO_H + 12;
 
 export class PrepScene extends Phaser.Scene {
   private starting = false;
@@ -48,7 +54,7 @@ export class PrepScene extends Phaser.Scene {
 
     if (this.run.shop_offers.length === 0) {
       const rng = mulberry32(this.run.seed + this.run.wave_index * 104729);
-      this.run.shop_offers = rollShop(config.items, rng, 3);
+      this.run.shop_offers = rollShop(config.items, rng, 4);
     }
 
     this.ui = this.add.container(0, 0);
@@ -109,7 +115,7 @@ export class PrepScene extends Phaser.Scene {
 
     this.ui.add(
       this.add
-        .text(cx, top + 10, `第 ${run.wave_index + 1} 波 / 共 ${config.waves.length} 波`, {
+        .text(cx, top + 12, `第 ${run.wave_index + 1} 波 / 共 ${config.waves.length} 波`, {
           ...TEXT_STYLE,
           fontSize: '30px',
           fontStyle: 'bold',
@@ -130,9 +136,9 @@ export class PrepScene extends Phaser.Scene {
     const lines = wave.groups.map((g) => `${config.enemies[g.enemy]!.name} × ${g.count}`);
     this.ui.add(
       this.add
-        .text(cx, top + 104, lines.join('    '), {
+        .text(cx, top + 102, lines.join('    '), {
           ...TEXT_STYLE,
-          fontSize: '18px',
+          fontSize: '17px',
           color: COLORS.dim,
         })
         .setOrigin(0.5),
@@ -141,7 +147,7 @@ export class PrepScene extends Phaser.Scene {
     const hpPct = run.hp / run.max_hp;
     this.ui.add(
       this.add
-        .text(cx, top + 146, `生命 ${Math.ceil(run.hp)} / ${run.max_hp}`, {
+        .text(cx, top + 140, `生命 ${Math.ceil(run.hp)} / ${run.max_hp}`, {
           ...TEXT_STYLE,
           fontSize: '18px',
           color: hpPct < 0.35 ? COLORS.danger : COLORS.text,
@@ -151,7 +157,7 @@ export class PrepScene extends Phaser.Scene {
 
     this.ui.add(
       this.add
-        .text(cx, top + 182, `经济 ${run.economy}    精粹 ${run.essence}    等级 Lv.${run.level}`, {
+        .text(cx, top + 174, `经济 ${run.economy}    精粹 ${run.essence}    等级 Lv.${run.level}`, {
           ...TEXT_STYLE,
           fontSize: '17px',
           color: COLORS.dim,
@@ -159,20 +165,37 @@ export class PrepScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
 
-    if (run.equipment.length > 0) {
-      const names = run.equipment
-        .map((id) => config.items.find((i) => i.id === id)?.name ?? id)
-        .join('、');
-      this.ui.add(
-        this.add
-          .text(cx, top + 212, `装备（${run.equipment.length}/${MAX_EQUIPMENT}）：${names}`, {
-            ...TEXT_STYLE,
-            fontSize: '15px',
-            color: COLORS.gold,
-          })
-          .setOrigin(0.5),
-      );
+    // 装备：6 格，只有成品占格
+    const eqNames = run.equipment.map((id) => findItem(config.items, id)?.name ?? id);
+    this.ui.add(
+      this.add
+        .text(cx, top + 212, `装备 ${run.equipment.length}/${MAX_EQUIPMENT}：${eqNames.join('、') || '无'}`, {
+          ...TEXT_STYLE,
+          fontSize: '15px',
+          color: COLORS.gold,
+        })
+        .setOrigin(0.5),
+    );
+
+    // 小件（不占格）
+    const componentLines: string[] = [];
+    const seen = new Set<string>();
+    for (const id of run.items) {
+      if (seen.has(id)) continue;
+      const item = findItem(config.items, id);
+      if (item?.kind !== 'stat') continue;
+      seen.add(id);
+      componentLines.push(`${item.name}×${ownedCount(run.items, id)}`);
     }
+    this.ui.add(
+      this.add
+        .text(cx, top + 244, `小件（不占格）：${componentLines.join('  ') || '无'}`, {
+          ...TEXT_STYLE,
+          fontSize: '14px',
+          color: COLORS.dim,
+        })
+        .setOrigin(0.5),
+    );
 
     const btnY = PANEL_BOTTOM - 74;
     const btn = this.add
@@ -210,14 +233,14 @@ export class PrepScene extends Phaser.Scene {
   private buildEvolutionPanel(): void {
     const x = PANEL_RIGHT;
     const y = PANEL_TOP;
-    const h = 268;
+    const h = EVO_H;
     this.panel(x, y, RIGHT_W, h);
     const cx = x + RIGHT_W / 2;
 
     this.ui.add(
-      this.add.text(x + 20, y + 18, '英雄进化', {
+      this.add.text(x + 20, y + 16, '英雄进化', {
         ...TEXT_STYLE,
-        fontSize: '22px',
+        fontSize: '21px',
         fontStyle: 'bold',
       }),
     );
@@ -229,36 +252,38 @@ export class PrepScene extends Phaser.Scene {
       .join(' → ');
 
     this.ui.add(
-      this.add.text(x + RIGHT_W - 20, y + 22, `精粹 ${this.run.essence}`, {
-        ...TEXT_STYLE,
-        fontSize: '17px',
-        color: COLORS.gold,
-      }).setOrigin(1, 0),
+      this.add
+        .text(x + RIGHT_W - 20, y + 20, `精粹 ${this.run.essence}`, {
+          ...TEXT_STYLE,
+          fontSize: '16px',
+          color: COLORS.gold,
+        })
+        .setOrigin(1, 0),
     );
 
     this.ui.add(
-      this.add.text(x + 20, y + 56, stage ? `阶段 ${stage.stage} / ${config.evolutions.length}` : '已完成全部进化', {
-        ...TEXT_STYLE,
-        fontSize: '16px',
-        color: COLORS.dim,
-      }),
+      this.add.text(
+        x + 20,
+        y + 50,
+        stage ? `阶段 ${stage.stage} / ${config.evolutions.length}` : '已完成全部进化',
+        { ...TEXT_STYLE, fontSize: '15px', color: COLORS.dim },
+      ),
     );
 
     if (chosenNames) {
       this.ui.add(
-        this.add.text(x + 20, y + 82, `已选方向：${chosenNames}`, {
+        this.add.text(x + RIGHT_W - 20, y + 50, `已选：${chosenNames}`, {
           ...TEXT_STYLE,
-          fontSize: '15px',
+          fontSize: '14px',
           color: COLORS.accent,
-        }),
+        }).setOrigin(1, 0),
       );
     }
 
     if (stage) {
-      const cost = stage.cost;
-      const afford = this.run.essence >= cost;
+      const afford = this.run.essence >= stage.cost;
       const btn = this.add
-        .rectangle(cx, y + h - 70, 320, 52, 0x1b2a3f)
+        .rectangle(cx, y + h - 62, 340, 48, 0x1b2a3f)
         .setStrokeStyle(2, afford ? COLORS.accent_line : 0x334155)
         .setInteractive({ useHandCursor: afford });
       if (afford) {
@@ -269,18 +294,19 @@ export class PrepScene extends Phaser.Scene {
       this.ui.add(btn);
       this.ui.add(
         this.add
-          .text(cx, y + h - 70, afford ? `进化（${cost} 精粹）· 三选一` : `还需要 ${cost - this.run.essence} 精粹`, {
-            ...TEXT_STYLE,
-            fontSize: '18px',
-            color: afford ? COLORS.accent : COLORS.dim,
-          })
+          .text(
+            cx,
+            y + h - 62,
+            afford ? `进化（${stage.cost} 精粹）· 三选一` : `还需要 ${stage.cost - this.run.essence} 精粹`,
+            { ...TEXT_STYLE, fontSize: '18px', color: afford ? COLORS.accent : COLORS.dim },
+          )
           .setOrigin(0.5),
       );
       this.ui.add(
         this.add
-          .text(cx, y + h - 28, '每个阶段从三个方向里选一个，选定后不可更改', {
+          .text(cx, y + h - 26, '每个阶段从三个方向里选一个，选定后不可更改', {
             ...TEXT_STYLE,
-            fontSize: '13px',
+            fontSize: '12px',
             color: COLORS.dim,
           })
           .setOrigin(0.5),
@@ -290,42 +316,52 @@ export class PrepScene extends Phaser.Scene {
 
   private buildShopPanel(): void {
     const x = PANEL_RIGHT;
-    const y = PANEL_TOP + 284;
+    const y = SHOP_TOP;
     const h = PANEL_BOTTOM - y;
     this.panel(x, y, RIGHT_W, h);
 
     this.ui.add(
-      this.add.text(x + 20, y + 16, '商店', { ...TEXT_STYLE, fontSize: '22px', fontStyle: 'bold' }),
+      this.add.text(x + 18, y + 12, '商店', { ...TEXT_STYLE, fontSize: '21px', fontStyle: 'bold' }),
     );
     this.ui.add(
       this.add
-        .text(x + RIGHT_W - 20, y + 20, `经济 ${this.run.economy}`, {
+        .text(x + RIGHT_W - 18, y + 16, `经济 ${this.run.economy}`, {
           ...TEXT_STYLE,
-          fontSize: '17px',
+          fontSize: '16px',
           color: COLORS.gold,
         })
         .setOrigin(1, 0),
     );
 
-    this.run.shop_offers.forEach((id, i) => {
-      const item = config.items.find((it) => it.id === id);
+    const cellW = 282;
+    const cellH = 128;
+    const gapX = 12;
+    const gapY = 10;
+    this.run.shop_offers.forEach((id, index) => {
+      const item = findItem(config.items, id);
       if (!item) return;
-      this.shopRow(item, x + 16, y + 56 + i * 82, RIGHT_W - 32, 72);
+      const col = index % 2;
+      const row = Math.floor(index / 2);
+      const cellX = x + 18 + col * (cellW + gapX);
+      const cellY = y + 52 + row * (cellH + gapY);
+      this.shopCell(item, cellX, cellY, cellW, cellH);
     });
 
     this.ui.add(
-      this.add.text(x + 20, y + h - 30, `装备上限 ${MAX_EQUIPMENT} 件 · 消耗品立即生效 · 每波刷新`, {
-        ...TEXT_STYLE,
-        fontSize: '13px',
-        color: COLORS.dim,
-      }),
+      this.add.text(
+        x + 18,
+        y + h - 26,
+        `小件不占格 · 成品占 1 格（${MAX_EQUIPMENT} 格）· 组件会被合成消耗 · 每波刷新`,
+        { ...TEXT_STYLE, fontSize: '12px', color: COLORS.dim },
+      ),
     );
   }
 
-  private shopRow(item: ItemDef, x: number, y: number, w: number, h: number): void {
-    const affordable = this.run.economy >= item.price;
+  private shopCell(item: ItemDef, x: number, y: number, w: number, h: number): void {
+    const recipe = item.recipe ? recipeStatus(item, this.run.items) : { ok: true, missing: [] };
     const slotsFull = item.kind === 'equipment' && this.run.equipment.length >= MAX_EQUIPMENT;
-    const usable = affordable && !slotsFull;
+    const affordable = this.run.economy >= item.price;
+    const usable = affordable && recipe.ok && !slotsFull;
 
     const box = this.add
       .rectangle(x + w / 2, y + h / 2, w, h, 0x0f1724)
@@ -338,46 +374,99 @@ export class PrepScene extends Phaser.Scene {
     }
     this.ui.add(box);
 
+    const kindTag =
+      item.kind === 'consumable' ? '消耗品' : item.kind === 'stat' ? '小件' : '成品装备';
+
     this.ui.add(
-      this.add.text(x + 14, y + 12, item.name, {
+      this.add.text(x + 12, y + 10, item.name, {
         ...TEXT_STYLE,
-        fontSize: '18px',
+        fontSize: '17px',
         color: usable ? COLORS.text : COLORS.dim,
       }),
     );
     this.ui.add(
-      this.add.text(x + 14, y + 40, item.desc, {
-        ...TEXT_STYLE,
-        fontSize: '13px',
-        color: COLORS.dim,
-      }),
-    );
-
-    const tag = item.kind === 'equipment' ? '装备' : '消耗品';
-    const priceLabel = slotsFull ? '装备已满' : `${item.price} 经济`;
-    this.ui.add(
       this.add
-        .text(x + w - 14, y + 14, priceLabel, {
+        .text(x + w - 12, y + 12, `${item.price} 经济`, {
           ...TEXT_STYLE,
-          fontSize: '16px',
+          fontSize: '14px',
           color: usable ? COLORS.gold : COLORS.dim,
         })
         .setOrigin(1, 0),
     );
     this.ui.add(
       this.add
-        .text(x + w - 14, y + 40, tag, { ...TEXT_STYLE, fontSize: '13px', color: COLORS.dim })
+        .text(x + w - 12, y + 32, slotsFull ? '装备已满' : kindTag, {
+          ...TEXT_STYLE,
+          fontSize: '11px',
+          color: slotsFull ? COLORS.danger : COLORS.dim,
+        })
         .setOrigin(1, 0),
     );
+
+    this.ui.add(
+      this.add.text(x + 12, y + 38, wrap(item.desc, 20), {
+        ...TEXT_STYLE,
+        fontSize: '12px',
+        color: COLORS.dim,
+        lineSpacing: 2,
+      }),
+    );
+
+    if (item.recipe) {
+      const names = item.recipe.map((id) => findItem(config.items, id)?.name ?? id).join(' + ');
+      this.ui.add(
+        this.add.text(x + 12, y + h - 22, `合成：${names}${recipe.ok ? ' ✓' : ' ✗'}`, {
+          ...TEXT_STYLE,
+          fontSize: '12px',
+          color: recipe.ok ? COLORS.accent : COLORS.dim,
+        }),
+      );
+    } else if (item.kind === 'consumable') {
+      this.ui.add(
+        this.add.text(x + 12, y + h - 22, '购买后立即生效', {
+          ...TEXT_STYLE,
+          fontSize: '12px',
+          color: COLORS.dim,
+        }),
+      );
+    }
   }
 
   private purchase(item: ItemDef): void {
     const result = buyItem(item, this.run);
-    if (result !== 'ok') return;
+    if (result === 'poor') return;
+    if (result === 'slots') {
+      this.flashHint('装备已满：先合成更少而精的成品');
+      return;
+    }
+    if (result === 'recipe') {
+      this.flashHint('缺少合成组件');
+      return;
+    }
+
     sfx.play('buy');
     this.run.shop_offers = this.run.shop_offers.filter((id) => id !== item.id);
     saveRun(this.run);
     this.build();
+  }
+
+  private flashHint(message: string): void {
+    const { width, height } = this.scale;
+    const tip = this.add
+      .text(width / 2, height - 30, message, {
+        ...TEXT_STYLE,
+        fontSize: '16px',
+        color: COLORS.danger,
+      })
+      .setOrigin(0.5)
+      .setDepth(80);
+    this.tweens.add({
+      targets: tip,
+      alpha: 0,
+      delay: 700,
+      duration: 400,
+      onComplete: () => tip.destroy(),
+    });
   }
 
   // ---------------------------------------------------------------- evolution modal
@@ -448,7 +537,9 @@ export class PrepScene extends Phaser.Scene {
     cancel.on('pointerdown', () => this.closeModal());
     modal.add(cancel);
     modal.add(
-      this.add.text(width / 2, 600, '取消', { ...TEXT_STYLE, fontSize: '18px', color: COLORS.dim }).setOrigin(0.5),
+      this.add
+        .text(width / 2, 600, '取消', { ...TEXT_STYLE, fontSize: '18px', color: COLORS.dim })
+        .setOrigin(0.5),
     );
   }
 
@@ -468,7 +559,6 @@ export class PrepScene extends Phaser.Scene {
   private start(): void {
     if (this.starting) return;
     this.starting = true;
-    // 下一波重新进货（每波刷新商品）
     this.run.shop_offers = [];
     this.cameras.main.fadeOut(180, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {

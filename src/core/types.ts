@@ -131,14 +131,24 @@ export interface EvolutionStage {
   options: EvolutionOption[];
 }
 
+export interface ItemActive {
+  kind: 'dash' | 'shield';
+  cooldown_ms: number;
+  power: number;
+  duration_ms?: number;
+}
+
 export interface ItemDef {
   id: string;
   name: string;
   desc: string;
   price: number;
-  kind: 'consumable' | 'equipment';
+  kind: 'consumable' | 'stat' | 'equipment';
   mods?: Partial<Mods>;
   heal?: number;
+  /** 合成配方：拥有全部组件才能合成（组件会被消耗）。 */
+  recipe?: string[];
+  active?: ItemActive;
 }
 
 export interface GameConfig {
@@ -200,5 +210,6 @@ export interface RunState {
   bond_members: string[];
   evolutions: string[];
   equipment: string[];
+  items: string[];
   shop_offers: string[];
 }

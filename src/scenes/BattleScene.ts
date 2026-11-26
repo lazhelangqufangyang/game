@@ -1,12 +1,13 @@
 import Phaser from 'phaser';
+import { addArenaAmbience } from '../assets/ambience';
 import { visualOf, type VisualDef } from '../assets/visuals';
 import { config } from '../config';
 import { RESOURCE_META, RESOURCE_ORDER, grantResource } from '../core/resources';
 import { saveRun } from '../core/save';
 import { sfx } from '../core/sfx';
-import { mulberry32 } from '../core/rng';
 import type {
   Direction,
+  ItemDef,
   PassiveDef,
   ResourceKind,
   RunState,
@@ -16,7 +17,7 @@ import type {
   WaveDef,
 } from '../core/types';
 import { BondTracker, type BondActivation } from '../systems/bonds';
-import { equipmentMods, evolutionMods, evolutionPerks } from '../systems/meta';
+import { activeItems, inventoryMods, evolutionMods, evolutionPerks } from '../systems/meta';
 import { PassiveBook, sumMods } from '../systems/passives';
 import { computeStats, rollPassives, XpTracker } from '../systems/progression';
 import { SummonSystem } from '../systems/summon';
@@ -67,6 +68,17 @@ export class BattleScene extends Phaser.Scene {
   private dead = false;
   private bossSprite: Phaser.Physics.Arcade.Sprite | null = null;
   private bossMaxHp = 0;
+
+  private actives: ItemDef[] = [];
+  private readonly itemCd = new Map<string, number>();
+  private itemButtons: Array<{
+    def: ItemDef;
+    bg: Phaser.GameObjects.Rectangle;
+    label: Phaser.GameObjects.Text;
+    cdText: Phaser.GameObjects.Text;
+  }> = [];
+  private shield = 0;
+  private shieldUntil = 0;
 
   private hpBar!: Phaser.GameObjects.Graphics;
   private xpBar!: Phaser.GameObjects.Graphics;
@@ -166,6 +178,13 @@ export class BattleScene extends Phaser.Scene {
 
     this.director = new WaveDirector(this.wave);
     this.cameras.main.fadeIn(180, 0, 0, 0);
+
+    this.actives = activeItems(config.items, this.run.equipment);
+    this.itemCd.clear();
+    this.shield = 0;
+    this.shieldUntil = 0;
+    this.buildItemBar();
+
     saveRun(this.run);
   }
 
@@ -173,28 +192,24 @@ export class BattleScene extends Phaser.Scene {
 
   private buildBackground(): void {
     this.add.rectangle(0, 0, ARENA_W, ARENA_H, COLORS.bg).setOrigin(0);
-    this.add.tileSprite(0, 0, ARENA_W, ARENA_H, 'floor-a').setOrigin(0).setTileScale(2).setDepth(0);
 
-    // 地面装饰用本局种子铺开，同一局反复进出 Prep 位置不变
-    const rng = mulberry32(this.run.seed ^ 0x9e3779b9);
-    const decals = ['decor-crack', 'decor-scuff', 'decor-scuff', 'decor-crack'];
-    for (let i = 0; i < 22; i += 1) {
-      const key = decals[Math.floor(rng() * decals.length)]!;
-      this.add
-        .image(rng() * ARENA_W, rng() * ARENA_H, key)
-        .setScale(2)
-        .setAlpha(0.5)
-        .setDepth(0.2)
-        .setAngle(Math.floor(rng() * 4) * 90);
-    }
+    // 整张背景是一幅画（不是平铺瓷砖）：夜色遗迹斗技场。
+    // 若 public/assets/arena.png 存在则用它，否则用程序化绘制的那张。
+    const arenaKey = (this.registry.get('arenaKey') as string | undefined) ?? 'arena';
+    this.add.image(0, 0, arenaKey).setOrigin(0).setDepth(0).setDisplaySize(ARENA_W, ARENA_H);
+    addArenaAmbience(this, 0.12);
 
-    this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(ARENA_W, ARENA_H).setDepth(0.6);
-
+    // 可玩区域的极淡描边，替代原来的硬边框
     const frame = this.add.graphics().setDepth(0.7);
-    frame.lineStyle(3, COLORS.border, 1);
-    frame.strokeRect(1.5, 1.5, ARENA_W - 3, ARENA_H - 3);
+    frame.lineStyle(1, 0x6ee7ff, 0.07);
+    frame.strokeRect(0.5, 0.5, ARENA_W - 1, ARENA_H - 1);
 
     this.addDirectionGate();
+
+    // 底部 UI 底衬：面板是半透明的，没有这层会透出战场和红色闸门
+    const band = this.add.graphics().setDepth(28);
+    band.fillGradientStyle(0x05070c, 0x05070c, 0x05070c, 0x05070c, 0, 0, 0.9, 0.9);
+    band.fillRect(0, ARENA_H - 124, ARENA_W, 124);
   }
 
   /** 在来袭那一侧描一条红边 + 指向战场内的箭头，让「这波怪从哪边来」一眼可见。 */
@@ -227,6 +242,7 @@ export class BattleScene extends Phaser.Scene {
     }
     strip.setDepth(0.8);
 
+    // 方向闸门的箭头别画到底部 UI 区域里（否则会从半透明面板后透出来）
     const arrows = this.add.container(0, 0).setDepth(0.85);
     for (const m of marks) {
       const arrow = this.add.triangle(m.x, m.y, -12, -11, 12, 0, -12, 11, 0xff5c7a, 0.5);
@@ -258,6 +274,9 @@ export class BattleScene extends Phaser.Scene {
       const code = SKILL_KEYS[i];
       if (!code) return;
       kb.on(`keydown-${code}`, () => this.castSkill(def.id));
+    });
+    ['FOUR', 'FIVE'].forEach((code, i) => {
+      kb.on(`keydown-${code}`, () => this.castItemActive(i));
     });
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
@@ -333,6 +352,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.summonSystem.update(dt);
     this.tickCooldowns(dt);
+    this.tickItemCooldowns(dt);
     this.updateMovement();
     this.updateCombat(dt);
     this.updateSpawns(dt);
@@ -345,10 +365,85 @@ export class BattleScene extends Phaser.Scene {
     this.checkWaveCleared();
   }
 
+  /** 主动装备按钮：4/5 键，最多两个。 */
+  private buildItemBar(): void {
+    this.itemButtons = [];
+    this.actives.slice(0, 2).forEach((def, i) => {
+      const x = 24 + i * 148;
+      const y = ARENA_H - 168;
+      const bg = this.add
+        .rectangle(x + 68, y + 26, 136, 52, 0x121a27)
+        .setStrokeStyle(2, 0x8b6b2f)
+        .setDepth(30)
+        .setInteractive({ useHandCursor: true });
+      bg.on('pointerdown', () => this.castItemActive(i));
+
+      const label = this.add
+        .text(x + 68, y + 18, def.name, { ...TEXT_STYLE, fontSize: '14px', color: COLORS.gold })
+        .setOrigin(0.5)
+        .setDepth(32);
+      const cdText = this.add
+        .text(x + 68, y + 42, `[${4 + i}]`, { ...TEXT_STYLE, fontSize: '12px', color: COLORS.dim })
+        .setOrigin(0.5)
+        .setDepth(32);
+
+      this.itemButtons.push({ def, bg, label, cdText });
+    });
+  }
+
+  private updateItemButtons(): void {
+    this.itemButtons.forEach((button, index) => {
+      const cd = this.itemCd.get(button.def.id) ?? 0;
+      const ready = cd <= 0;
+      button.bg.setStrokeStyle(2, ready ? 0x8b6b2f : 0x3b4453);
+      button.label.setAlpha(ready ? 1 : 0.4);
+      button.cdText
+        .setText(ready ? `[${4 + index}]` : `${Math.ceil(cd / 1000)}s`)
+        .setColor(ready ? COLORS.dim : COLORS.danger);
+    });
+  }
+
+  private castItemActive(index: number): void {
+    if (this.dead || this.overlayOpen) return;
+    const def = this.actives[index];
+    if (!def?.active) return;
+    const cd = this.itemCd.get(def.id) ?? 0;
+    if (cd > 0) {
+      this.toast(`${def.name} 冷却中`);
+      return;
+    }
+    this.itemCd.set(def.id, def.active.cooldown_ms);
+
+    if (def.active.kind === 'dash') {
+      this.itemDash(def.active.power);
+    } else {
+      this.shield = def.active.power;
+      this.shieldUntil = this.time.now + (def.active.duration_ms ?? 4000);
+      this.popText(this.player.x, this.player.y - 30, `护盾 +${def.active.power}`, COLORS.accent);
+    }
+    sfx.play('evolve');
+  }
+
+  private itemDash(power: number): void {
+    const dir = this.lastMove.clone().normalize();
+    const nx = Phaser.Math.Clamp(this.player.x + dir.x * power, 24, ARENA_W - 24);
+    const ny = Phaser.Math.Clamp(this.player.y + dir.y * power, 24, ARENA_H - 24);
+    this.invuln = Math.max(this.invuln, 350);
+    (this.player.body as Phaser.Physics.Arcade.Body).reset(nx, ny);
+  }
+
   private tickCooldowns(dt: number): void {
     for (const [id, cd] of this.skillCd) {
       if (cd > 0) this.skillCd.set(id, Math.max(0, cd - dt));
     }
+  }
+
+  private tickItemCooldowns(dt: number): void {
+    for (const [id, cd] of this.itemCd) {
+      if (cd > 0) this.itemCd.set(id, Math.max(0, cd - dt));
+    }
+    if (this.shield > 0 && this.time.now >= this.shieldUntil) this.shield = 0;
+    this.updateItemButtons();
   }
 
   private updateMovement(): void {
@@ -852,7 +947,7 @@ export class BattleScene extends Phaser.Scene {
       this.book.mods(),
       this.bonds.mods(),
       evolutionMods(config.evolutions, this.run.evolutions),
-      equipmentMods(config.items, this.run.equipment),
+      inventoryMods(config.items, this.run.items),
     );
   }
 
@@ -986,7 +1081,9 @@ export class BattleScene extends Phaser.Scene {
     this.xpBar.fillStyle(0x5ee6a8, 1).fillRect(x, y + h + 4, w * this.xp.progress, 4);
 
     this.hpText.setText(
-      `Lv.${this.xp.level} · 生命 ${Math.max(0, Math.ceil(this.run.hp))} / ${this.run.max_hp}`,
+      `Lv.${this.xp.level} · 生命 ${Math.max(0, Math.ceil(this.run.hp))} / ${this.run.max_hp}${
+        this.shield > 0 ? ` · 护盾 ${Math.round(this.shield)}` : ''
+      }`,
     );
     this.waveText.setText(
       `第 ${this.run.wave_index + 1} / ${config.waves.length} 波 · ${DIRECTION_LABEL[this.direction]}`,
@@ -1162,7 +1259,24 @@ export class BattleScene extends Phaser.Scene {
     if (this.dead || !hostile.active) return;
     if (this.invuln > 0) return;
 
-    const damage = hostile.getData('damage') as number;
+    const damage0 = hostile.getData('damage') as number;
+    let damage = damage0;
+
+    if (this.shield > 0 && this.time.now < this.shieldUntil) {
+      const absorbed = Math.min(this.shield, damage);
+      this.shield -= absorbed;
+      damage -= absorbed;
+      if (absorbed > 0) {
+        this.popText(this.player.x, this.player.y - 26, `护盾 -${Math.round(absorbed)}`, COLORS.accent);
+      }
+      if (this.shield <= 0) this.shield = 0;
+    }
+
+    if (damage <= 0) {
+      this.invuln = 250;
+      return;
+    }
+
     this.run.hp -= damage;
     this.invuln = 650;
 
