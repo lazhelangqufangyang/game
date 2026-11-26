@@ -93,6 +93,17 @@ describe('配置加载', () => {
       expect(level).toBeLessThanOrEqual(config.levels.max_level);
     }
   });
+
+  it('8 波难度递增，最后一波有 Boss', () => {
+    expect(config.waves).toHaveLength(8);
+    for (let i = 1; i < config.waves.length; i += 1) {
+      expect(config.waves[i]!.hp_scale).toBeGreaterThan(config.waves[i - 1]!.hp_scale);
+    }
+    const last = config.waves[config.waves.length - 1]!;
+    const bossGroup = last.groups.find((g) => config.enemies[g.enemy]?.boss);
+    expect(bossGroup).toBeTruthy();
+    expect(bossGroup!.count).toBe(1);
+  });
 });
 
 describe('配置校验', () => {

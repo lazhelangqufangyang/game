@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { addMenuBackdrop } from '../assets/backdrop';
+import { clearRun } from '../core/save';
 import { COLORS, TEXT_STYLE } from '../ui/style';
 
 interface ResultData {
@@ -18,6 +19,8 @@ export class ResultScene extends Phaser.Scene {
   create(data: ResultData): void {
     const { width, height } = this.scale;
     this.restarted = false;
+    // 一局结束：清掉存档，下次启动是新的一局
+    clearRun();
     this.add.rectangle(0, 0, width, height, COLORS.bg).setOrigin(0).setDepth(-30);
     addMenuBackdrop(this, width, height);
 

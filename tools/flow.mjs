@@ -16,9 +16,7 @@ const page = await browser.newPage();
 await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-page.on('console', (m) => {
-  if (m.type() === 'error') errors.push(m.text());
-});
+page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 
 await page.goto('http://127.0.0.1:5173/?renderer=canvas', { waitUntil: 'networkidle0' });
 await sleep(700);
@@ -40,62 +38,30 @@ const clearWave = () =>
     return 'cleared';
   });
 
-await page.keyboard.press('Space');
-await sleep(1500);
-console.log('after start:', await sceneKey(), await page.evaluate(() => window.__game.registry.get('direction')));
-await page.screenshot({ path: `${OUT}/02-battle.png` });
+// 从头打到 Boss 波，验证完整 8 波流转
+let wave = 0;
+while (wave < 10) {
+  const scene = await sceneKey();
+  if (scene.includes('Result')) break;
+  if (scene.includes('Prep')) {
+    await page.keyboard.press('Space');
+    await sleep(900);
+    wave += 1;
+    console.log(`wave ${wave} start ->`, await sceneKey());
+    continue;
+  }
+  await clearWave();
+  await sleep(1300);
+  console.log(`wave ${wave} cleared ->`, await sceneKey());
+}
 
-// 装一个被动、升到 3 级，验证跨波次保留
-await page.evaluate(() => {
-  const s = window.__game.scene.keys.Battle;
-  s.book.add(window.__config.passives[0]);
-  s.run.passives = s.book.ids();
-  s.passiveBar.refresh(s.book.list);
-  s.xp.level = 3;
-  s.run.level = 3;
-  s.refreshStats(true);
+const finalScene = await sceneKey();
+const stats = await page.evaluate(() => {
+  const run = window.__game.registry.get('run');
+  return { wave: run.wave_index + 1, kills: run.kills, save: localStorage.getItem('rogue-waves-save') };
 });
-
-// 第一波清空
-await clearWave();
-await sleep(1400);
-console.log('after wave1:', await sceneKey());
-await page.screenshot({ path: `${OUT}/03-prep-wave2.png` });
-
-await page.keyboard.press('Space');
-await sleep(1400);
-console.log(
-  'carry over:',
-  await page.evaluate(() => {
-    const s = window.__game.scene.keys.Battle;
-    return { level: s.xp.level, passives: s.run.passives, slots: s.book.count };
-  }),
-);
-await clearWave();
-await sleep(1400);
-console.log('after wave2:', await sceneKey());
-
-await page.keyboard.press('Space');
-await sleep(1200);
-await clearWave();
-await sleep(1600);
-console.log('after wave3:', await sceneKey());
+console.log('final', finalScene, stats);
 await page.screenshot({ path: `${OUT}/04-result-win.png` });
 
-// 重开并测试死亡
-await page.keyboard.press('Space');
-await sleep(900);
-await page.keyboard.press('Space');
-await sleep(1600);
-await page.evaluate(() => {
-  const s = window.__game.scene.keys.Battle;
-  s.run.hp = 5;
-  const enemy = s.enemies.getChildren().find((e) => e.active);
-  if (enemy) s.touchPlayer(enemy);
-});
-await sleep(1500);
-console.log('after death:', await sceneKey());
-await page.screenshot({ path: `${OUT}/05-result-lose.png` });
-
-console.log('errors:', errors.length ? errors : 'none');
+console.log('errors:', errors.length ? errors.slice(0, 5) : 'none');
 await browser.close();

@@ -70,6 +70,8 @@
 - 波次难度递增；波与波之间有短暂的准备/结算阶段（Prep 场景）。
 - **失败条件：英雄生命归零即失败**（没有基地血量；漏怪不会直接判负，但怪物会一直追着英雄打）。
 - 波次配置必须**数据驱动**（波数、怪物种类、数量、间隔、方向、血量/攻击成长曲线 → `data/waves.json`）。
+- 当前 **8 波**：第 1–7 波逐步加量，`hp_scale` 1 → 1.9 递增；**第 8 波为 Boss 波**（守关者 + 杂兵/疾行者），Boss 血条显示在顶部。
+- Boss 由 `enemies.json` 的 `boss: true` 标记；Boss 波 `hp_scale = 2`（Boss 本体 840 血）。
 
 ### 3.2 主动召唤（核心资源引擎）
 
@@ -149,6 +151,14 @@
 - **消耗品**：立即生效（当前为治疗药剂，回复固定生命）。
 - 买不起或装备满时按钮置灰并说明原因。
 
+### 3.9 存档、音效与打击感
+
+- **存档**：`localStorage` 键 `rogue-waves-save`，版本号 `SAVE_VERSION = 1`；在 Prep 进入、购买、进化、开战、过关时自动保存；**死亡/通关后清档**。
+- 启动时若有合法存档则**自动续档**（Prep 顶部提示），Prep 左上角有「重开一局（清空存档）」。
+- 存档解析必须**容错**：损坏/版本不符一律当作无存档，不得卡住启动；`hp` 读档时夹到 `max_hp`。
+- **音效**：全部用 WebAudio 现场合成（不引入音频文件），首次指针/键盘交互时解锁；`M` 键静音。
+- **打击感**：击杀触发 ~45ms 物理顿帧（`physics.world.timeScale`），命中飘伤害数字（暴击更大更亮），受击/击杀/升级/进化/购买/Boss 登场各有音效。
+
 ---
 
 ## 4. 数据驱动原则（强制）
@@ -184,7 +194,7 @@
   systems/        wave summon resource levelup passive bond shop hero
   entities/       Player Enemy Summon Projectile Pickup
   ui/             槽位面板、三选一、商店、资源 HUD
-  core/           eventBus、rng（带种子）、save、types
+  core/           eventBus、rng（带种子）、run（初始状态）、save（localStorage 存档）、sfx（WebAudio 合成音效）、types
 /tests/           Vitest：资源结算、8 格规则、羁绊进化、升级曲线、刷怪节奏
 /tools/           无头浏览器冒烟测试（Edge + puppeteer-core）+ 美术预览（sprite-sheet.mjs / art.mjs）
 /docs/            美术管线等说明（art.md）
@@ -226,7 +236,7 @@ npm run typecheck  # tsc --noEmit
   `$env:TEMP='D:\小游戏2\.tmp'; $env:TMP=$env:TEMP`
 - 无头 Edge 的 WebGL 会 `Framebuffer Unsupported`，冒烟测试统一用 `?renderer=canvas` 打开。
 - Vite 文件监听遇到原子写入的临时目录会 `EBUSY` 崩溃；`vite.config.ts` 已忽略 `*.tmpdir/**`，不要删这条配置。
-- 冒烟测试：`node tools/flow.mjs`（波次流转/胜负）、`node tools/summon.mjs`（召唤/掉落/冷却/上限）、`node tools/levelup.mjs`（升级/刷新/满 8 格弃置）、`node tools/skills.mjs`（主动技能与多重射击）、`node tools/bonds.mjs`（羁绊 3/5 进化与腾格）、`node tools/meta.mjs`（商店购买/3 阶段进化）、`node tools/mobile.mjs`（手机视口 + 触摸拖动）、`node tools/debug.mjs`（战斗运行时状态）。截图落在 `.shots/`。
+- 冒烟测试：`node tools/flow.mjs`（波次流转/胜负）、`node tools/summon.mjs`（召唤/掉落/冷却/上限）、`node tools/levelup.mjs`（升级/刷新/满 8 格弃置）、`node tools/skills.mjs`（主动技能与多重射击）、`node tools/bonds.mjs`（羁绊 3/5 进化与腾格）、`node tools/meta.mjs`（商店购买/3 阶段进化）、`node tools/m6.mjs`（存档续档/Boss 波/清场通关）、`node tools/mobile.mjs`（手机视口 + 触摸拖动）、`node tools/debug.mjs`（战斗运行时状态）。截图落在 `.shots/`。
 - 美术预览：`node tools/sprite-sheet.mjs` 把 `data/sprites.json` 渲染成 `.shots/sprites.png`（6 倍放大，不需要浏览器）；`node tools/art.mjs` 截 Prep/战斗/召唤三张验收图到 `.shots/`（需要 `npm run dev` 在跑）。
 
 ---
@@ -274,7 +284,7 @@ npm run typecheck  # tsc --noEmit
 | M3 | 成长系统 | 经验曲线、升级、数值成长、主动技能解锁、三选一被动、8 格槽位与弃置流程、被动效果运行时 | 升到 10 级流程无卡死；满 8 格强制弃置；被动生效可观测 | 已完成（2026-11-26） |
 | M4 | 元素羁绊 | 元素被动、羁绊检测、进化（释放格子 + 强化效果）、进化演出与图鉴提示 | 集齐即进化且不占格；弃置不破坏已进化（默认口径） | 已完成（2026-11-26） |
 | M5 | 经济与精粹 | 商店（消耗物/装备）、装备栏与效果、精粹与英雄进化分级 | 能花钱买到并生效；精粹进化改变属性/形态 | 已完成（2026-11-26） |
-| M6 | 打磨与平衡 | 数值曲线调优、波次多样性、Boss、存档、音效、移动端适配与 PWA | 手机浏览器可玩；一局 15–20 分钟节奏成立 | 未开始 |
+| M6 | 打磨与平衡 | 数值曲线调优、波次多样性、Boss、存档、音效、移动端适配与 PWA | 手机浏览器可玩；一局 15–20 分钟节奏成立 | 已完成（2026-11-26） |
 
 排期内固定动作：每个里程碑结束跑一次**手机窄屏实机验证**（或 DevTools 触摸模拟），把问题记入 `docs/`。
 
@@ -303,3 +313,4 @@ npm run typecheck  # tsc --noEmit
 | 2026-11-26 | M4 完成 | 定羁绊星级（元素 5 星 / 生命 3 星）、3 件合成 1 个且腾格、第 4/5 件仍占格、集满才完全体、进化不失效；加 `data/bonds.json`、`systems/bonds.ts`、羁绊 HUD 与进化演出 |
 | 2026-11-26 | 美术基线上线 | 定美术走「像素图即数据」：`data/sprites.json` 字符矩阵 + `src/assets/pixel.ts` 编译贴图 + `src/assets/tiles.ts` 程序化地砖/暗角；加 `data/visuals.json` 控制缩放/投影/压扁/翻转。同步换掉圆点占位：战斗背景改地砖 + 装饰 + 暗角 + 来袭方向闸门，英雄 2 帧行走动画，敌人行走压扁与翻转，受击闪白，死亡碎块，资源球呼吸。补 `tools/sprite-sheet.mjs`、`tools/art.mjs` 与 `docs/art.md` |
 | 2026-11-26 | M5 完成 | 定单英雄、3 阶段进化（3/6/10 精粹）每阶段三选一、不可回退；加 `data/evolutions.json`、`systems/meta.ts`、`data/items.json` 商店（装备上限 3、消耗品即时生效）、Prep 双栏布局与进化弹窗；属性结算并入进化/装备；补 `tools/meta.mjs` |
+| 2026-11-26 | M6 完成 | 扩到 8 波（第 8 波 Boss 守关者，顶部血条）；难度曲线 hp_scale 1→2；localStorage 自动存档/续档/通关清档；WebAudio 合成音效（M 静音）；击杀顿帧 + 伤害数字；补 `core/save.ts`、`core/sfx.ts`、`core/run.ts`、`tests/save.test.ts`、`tools/m6.mjs` |

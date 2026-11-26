@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { config } from './config';
+import { sfx } from './core/sfx';
 import { BootScene } from './scenes/BootScene';
 import { PrepScene } from './scenes/PrepScene';
 import { BattleScene } from './scenes/BattleScene';
@@ -26,6 +27,21 @@ const game = new Phaser.Game({
 });
 
 void game;
+
+// 音频必须在用户首次交互后解锁（移动端自动播放策略）；M 键静音。
+const unlockAudio = () => {
+  sfx.unlock();
+  window.removeEventListener('pointerdown', unlockAudio);
+  window.removeEventListener('keydown', unlockAudio);
+};
+window.addEventListener('pointerdown', unlockAudio);
+window.addEventListener('keydown', unlockAudio);
+window.addEventListener('keydown', (event) => {
+  if (event.key.toLowerCase() === 'm') {
+    const muted = sfx.toggleMute();
+    console.info(muted ? '[音效] 已静音' : '[音效] 已开启');
+  }
+});
 
 // 便于自动化冒烟测试读取运行时状态（仅调试用）。
 const debugWindow = window as unknown as { __game?: Phaser.Game; __config?: unknown };

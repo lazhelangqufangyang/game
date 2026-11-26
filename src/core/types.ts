@@ -35,6 +35,7 @@ export interface EnemyDef {
   radius: number;
   color: string;
   contact_cooldown_ms: number;
+  boss?: boolean;
 }
 
 export interface SummonDef {

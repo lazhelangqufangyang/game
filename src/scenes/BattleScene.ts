@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { visualOf, type VisualDef } from '../assets/visuals';
 import { config } from '../config';
 import { RESOURCE_META, RESOURCE_ORDER, grantResource } from '../core/resources';
+import { saveRun } from '../core/save';
+import { sfx } from '../core/sfx';
 import { mulberry32 } from '../core/rng';
 import type {
   Direction,
@@ -63,6 +65,8 @@ export class BattleScene extends Phaser.Scene {
   private invuln = 0;
   private waveCleared = false;
   private dead = false;
+  private bossSprite: Phaser.Physics.Arcade.Sprite | null = null;
+  private bossMaxHp = 0;
 
   private hpBar!: Phaser.GameObjects.Graphics;
   private xpBar!: Phaser.GameObjects.Graphics;
@@ -92,6 +96,8 @@ export class BattleScene extends Phaser.Scene {
     this.pointerActive = false;
     this.offerQueue.length = 0;
     this.skillCd.clear();
+    this.bossSprite = null;
+    this.bossMaxHp = 0;
 
     this.book = new PassiveBook();
     for (const id of this.run.passives) {
@@ -160,6 +166,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.director = new WaveDirector(this.wave);
     this.cameras.main.fadeIn(180, 0, 0, 0);
+    saveRun(this.run);
   }
 
   // ---------------------------------------------------------------- setup
@@ -449,17 +456,19 @@ export class BattleScene extends Phaser.Scene {
     const shots = this.stats.multishot;
     for (let i = 0; i < shots; i += 1) {
       const offset = (i - (shots - 1) / 2) * 0.09;
-      this.spawnBullet(base + offset, this.rollDamage(this.stats.damage));
+      const hit = this.rollHit(this.stats.damage);
+      this.spawnBullet(base + offset, hit.dmg, hit.crit);
     }
     this.attackCd = this.stats.cooldown_ms;
+    sfx.play('shoot');
   }
 
-  private rollDamage(base: number): number {
+  private rollHit(base: number): { dmg: number; crit: boolean } {
     const crit = Math.random() < this.stats.crit_chance;
-    return crit ? base * this.stats.crit_mult : base;
+    return { dmg: crit ? base * this.stats.crit_mult : base, crit };
   }
 
-  private spawnBullet(angle: number, damage: number): void {
+  private spawnBullet(angle: number, damage: number, crit = false): void {
     const bullet = this.bullets.get(this.player.x, this.player.y, 'bullet') as
       | Phaser.Physics.Arcade.Sprite
       | null;
@@ -473,6 +482,7 @@ export class BattleScene extends Phaser.Scene {
     if (visual.rotate) bullet.setRotation(angle);
     bullet.setData('born', this.time.now);
     bullet.setData('dmg', damage);
+    bullet.setData('crit', crit);
     this.physics.velocityFromRotation(
       angle,
       this.stats.bullet_speed,
@@ -529,6 +539,14 @@ export class BattleScene extends Phaser.Scene {
     enemy.setData('damage', def.damage);
     enemy.setData('speed', def.speed);
     enemy.setData('def_id', def.id);
+
+    if (def.boss) {
+      this.bossSprite = enemy;
+      this.bossMaxHp = def.hp * this.wave.hp_scale;
+      sfx.play('boss');
+      this.cameras.main.shake(260, 0.008);
+      this.toast(`BOSS 出现：${def.name}`, COLORS.danger);
+    }
   }
 
   // ---------------------------------------------------------------- skills
@@ -627,8 +645,10 @@ export class BattleScene extends Phaser.Scene {
     const count = def.count ?? 12;
     for (let i = 0; i < count; i += 1) {
       const angle = (Math.PI * 2 * i) / count;
-      this.spawnBullet(angle, this.rollDamage(this.stats.damage * def.power));
+      const hit = this.rollHit(this.stats.damage * def.power);
+      this.spawnBullet(angle, hit.dmg, hit.crit);
     }
+    sfx.play('shoot');
     this.cameras.main.flash(80, 40, 80, 120, false);
   }
 
@@ -816,6 +836,7 @@ export class BattleScene extends Phaser.Scene {
     if (gained <= 0) return;
 
     this.refreshStats(true);
+    sfx.play('levelup');
     for (let lv = before + 1; lv <= this.xp.level; lv += 1) {
       for (const skill of config.skills) {
         if (skill.level === lv) this.toast(`解锁主动技能：${skill.name}`, COLORS.accent);
@@ -899,6 +920,7 @@ export class BattleScene extends Phaser.Scene {
 
   private onBondEvolved(activation: BondActivation): void {
     const { bond, tier } = activation;
+    sfx.play('evolve');
     this.toast(`${bond.name}进化：${tier.name}`, COLORS.gold);
     this.popText(this.player.x, this.player.y - 44, `${tier.name}！`, COLORS.gold);
     this.cameras.main.flash(160, 90, 60, 140, false);
@@ -982,22 +1004,68 @@ export class BattleScene extends Phaser.Scene {
         return tier ? `${bond.name} ${progress} · ${tier.name}` : `${bond.name} ${progress}`;
       });
     this.bondText.setText(bondLines.join('\n'));
+
+    if (this.bossSprite?.active) {
+      const bossHp = (this.bossSprite.getData('hp') as number) ?? 0;
+      const bossRatio = Phaser.Math.Clamp(bossHp / Math.max(1, this.bossMaxHp), 0, 1);
+      const bw = 420;
+      const bx = (ARENA_W - bw) / 2;
+      const by = 58;
+      this.hpBar.fillStyle(0x000000, 0.6).fillRect(bx - 2, by - 2, bw + 4, 12);
+      this.hpBar.fillStyle(0x2a1620, 1).fillRect(bx, by, bw, 8);
+      this.hpBar.fillStyle(0xff4d6d, 1).fillRect(bx, by, bw * bossRatio, 8);
+    }
   }
 
   private hitEnemy(bullet: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite): void {
     if (!bullet.active || !enemy.active) return;
     const dmg = (bullet.getData('dmg') as number) ?? this.stats.damage;
+    const crit = (bullet.getData('crit') as boolean) ?? false;
     bullet.disableBody(true, true);
 
     const hp = (enemy.getData('hp') as number) - dmg;
     enemy.setData('hp', hp);
     this.applyLifesteal(dmg);
+    this.showDamage(enemy.x, enemy.y - 8, dmg, crit);
+    sfx.play('hit');
 
     if (hp > 0) {
       this.flashTarget(enemy);
       return;
     }
     this.killEnemy(enemy);
+  }
+
+  /** 飘伤害数字；暴击更大更亮。 */
+  private showDamage(x: number, y: number, amount: number, crit: boolean): void {
+    const jitterX = (Math.random() - 0.5) * 16;
+    const label = this.add
+      .text(x + jitterX, y, `${Math.round(amount)}${crit ? '!' : ''}`, {
+        fontFamily: '"Microsoft YaHei", system-ui, sans-serif',
+        fontSize: crit ? '22px' : '15px',
+        color: crit ? '#ffd166' : '#ffffff',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(60)
+      .setAlpha(0.95);
+
+    this.tweens.add({
+      targets: label,
+      y: y - 34,
+      alpha: 0,
+      duration: crit ? 620 : 460,
+      ease: 'Quad.easeOut',
+      onComplete: () => label.destroy(),
+    });
+  }
+
+  /** 击杀顿帧：物理世界短暂慢放，打击感来源。 */
+  private hitStop(ms: number): void {
+    this.physics.world.timeScale = 0.08;
+    this.time.delayedCall(ms, () => {
+      this.physics.world.timeScale = 1;
+    });
   }
 
   private applyLifesteal(damage: number): void {
@@ -1022,6 +1090,8 @@ export class BattleScene extends Phaser.Scene {
     }
     this.burst(x, y, color);
     this.spawnShards(x, y, color);
+    sfx.play('kill');
+    this.hitStop(45);
   }
 
   /** 死亡碎块：比纯粒子更能看出「被打碎了」。 */
@@ -1097,6 +1167,7 @@ export class BattleScene extends Phaser.Scene {
     this.invuln = 650;
 
     this.cameras.main.shake(120, 0.006);
+    sfx.play('hurt');
     this.player.setTintFill(0xff5c7a);
     this.player.setAlpha(0.55);
     this.time.delayedCall(110, () => {

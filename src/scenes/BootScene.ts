@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { buildActorTextures, buildAnimations } from '../assets/sprites';
 import { config } from '../config';
 import { RESOURCE_META, RESOURCE_ORDER } from '../core/resources';
-import type { RunState } from '../core/types';
+import { createRun } from '../core/run';
+import { loadRun } from '../core/save';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -15,24 +16,9 @@ export class BootScene extends Phaser.Scene {
     this.ensureFallbacks();
     this.ensureParticles();
 
-    const run: RunState = {
-      hp: config.hero.max_hp,
-      max_hp: config.hero.max_hp,
-      wave_index: 0,
-      kills: 0,
-      seed: (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0,
-      economy: 0,
-      xp: 0,
-      essence: 0,
-      level: 1,
-      level_xp: 0,
-      passives: [],
-      bond_members: [],
-      evolutions: [],
-      equipment: [],
-      shop_offers: [],
-    };
-    this.registry.set('run', run);
+    const saved = loadRun();
+    this.registry.set('run', saved ?? createRun(config.hero));
+    this.registry.set('resumed', saved !== null);
     this.registry.set('direction', 'north');
     this.scene.start('Prep');
   }

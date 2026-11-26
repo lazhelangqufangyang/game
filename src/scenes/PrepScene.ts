@@ -2,6 +2,9 @@ import Phaser from 'phaser';
 import { addMenuBackdrop } from '../assets/backdrop';
 import { config } from '../config';
 import { mulberry32 } from '../core/rng';
+import { createRun } from '../core/run';
+import { clearRun, saveRun } from '../core/save';
+import { sfx } from '../core/sfx';
 import type { EvolutionStage, ItemDef, RunState } from '../core/types';
 import {
   MAX_EQUIPMENT,
@@ -50,6 +53,32 @@ export class PrepScene extends Phaser.Scene {
 
     this.ui = this.add.container(0, 0);
     this.build();
+    saveRun(this.run);
+
+    if (this.registry.get('resumed')) {
+      this.add
+        .text(width / 2, 22, '已恢复上次进度（刷新页面不会丢）', {
+          ...TEXT_STYLE,
+          fontSize: '14px',
+          color: COLORS.accent,
+        })
+        .setOrigin(0.5, 0)
+        .setDepth(5);
+      this.registry.set('resumed', false);
+    }
+
+    this.add
+      .text(24, 22, '重开一局（清空存档）', { ...TEXT_STYLE, fontSize: '14px', color: COLORS.dim })
+      .setInteractive({ useHandCursor: true })
+      .setDepth(5)
+      .on('pointerdown', () => this.restartRun());
+  }
+
+  private restartRun(): void {
+    clearRun();
+    this.registry.set('run', createRun(config.hero));
+    this.registry.set('resumed', false);
+    this.scene.restart();
   }
 
   // ---------------------------------------------------------------- layout
@@ -345,7 +374,9 @@ export class PrepScene extends Phaser.Scene {
   private purchase(item: ItemDef): void {
     const result = buyItem(item, this.run);
     if (result !== 'ok') return;
+    sfx.play('buy');
     this.run.shop_offers = this.run.shop_offers.filter((id) => id !== item.id);
+    saveRun(this.run);
     this.build();
   }
 
@@ -423,6 +454,8 @@ export class PrepScene extends Phaser.Scene {
 
   private pickEvolution(optionId: string): void {
     if (!chooseEvolution(this.run, config.evolutions, optionId)) return;
+    sfx.play('evolve');
+    saveRun(this.run);
     this.closeModal();
     this.build();
   }

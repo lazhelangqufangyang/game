@@ -100,6 +100,7 @@ export function parseEnemies(raw: unknown): Record<string, EnemyDef> {
       radius: num(o.radius, `${path}.radius`, { min: 1 }),
       color: str(o.color, `${path}.color`),
       contact_cooldown_ms: num(o.contact_cooldown_ms, `${path}.contact_cooldown_ms`, { min: 1 }),
+      boss: o.boss === undefined ? undefined : o.boss === true,
     };
   });
   if (Object.keys(out).length === 0) fail('enemies', '至少需要一个怪物');
