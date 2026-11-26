@@ -11,99 +11,180 @@
   {
     "id": "dagger",
     "name": "短剑",
-    "desc": "攻击力 +10%（小件 · 不占装备格）",
-    "price": 10,
-    "kind": "stat",
+    "desc": "攻击力 +10%（小件）",
+    "price": 8,
+    "kind": "item",
+    "tier": 1,
     "mods": { "damage_pct": 10 }
   },
   {
     "id": "bracer",
     "name": "护腕",
-    "desc": "生命上限 +25（小件 · 不占装备格）",
-    "price": 10,
-    "kind": "stat",
+    "desc": "生命上限 +25（小件）",
+    "price": 8,
+    "kind": "item",
+    "tier": 1,
     "mods": { "max_hp": 25 }
   },
   {
     "id": "soft_boots",
     "name": "软靴",
-    "desc": "移速 +8%（小件 · 不占装备格）",
-    "price": 8,
-    "kind": "stat",
+    "desc": "移速 +8%（小件）",
+    "price": 6,
+    "kind": "item",
+    "tier": 1,
     "mods": { "speed_pct": 8 }
   },
   {
     "id": "gloves",
     "name": "手套",
-    "desc": "攻速 +8%（小件 · 不占装备格）",
-    "price": 10,
-    "kind": "stat",
+    "desc": "攻速 +8%（小件）",
+    "price": 8,
+    "kind": "item",
+    "tier": 1,
     "mods": { "aspd_pct": 8 }
   },
   {
     "id": "crystal",
     "name": "魔晶",
-    "desc": "暴击率 +5%（小件 · 不占装备格）",
-    "price": 12,
-    "kind": "stat",
+    "desc": "暴击率 +5%（小件）",
+    "price": 10,
+    "kind": "item",
+    "tier": 1,
     "mods": { "crit_chance": 5 }
+  },
+  {
+    "id": "quiver",
+    "name": "箭袋",
+    "desc": "射程 +10%（小件）",
+    "price": 8,
+    "kind": "item",
+    "tier": 1,
+    "mods": { "range_pct": 10 }
+  },
+
+  {
+    "id": "warblade",
+    "name": "战刃",
+    "desc": "攻击力 +18%，攻速 +8%（中件）",
+    "price": 14,
+    "kind": "item",
+    "tier": 2,
+    "recipe": ["dagger", "gloves"],
+    "mods": { "damage_pct": 18, "aspd_pct": 8 }
+  },
+  {
+    "id": "tower_shield",
+    "name": "重盾",
+    "desc": "生命上限 +60，暴击率 +4%（中件）",
+    "price": 14,
+    "kind": "item",
+    "tier": 2,
+    "recipe": ["bracer", "crystal"],
+    "mods": { "max_hp": 60, "crit_chance": 4 }
+  },
+  {
+    "id": "swift_boots",
+    "name": "疾行靴",
+    "desc": "移速 +14%，攻速 +10%（中件）",
+    "price": 12,
+    "kind": "item",
+    "tier": 2,
+    "recipe": ["soft_boots", "gloves"],
+    "mods": { "speed_pct": 14, "aspd_pct": 10 }
+  },
+  {
+    "id": "bloodstone",
+    "name": "血石",
+    "desc": "暴击率 +8%，吸血 +5%（中件）",
+    "price": 16,
+    "kind": "item",
+    "tier": 2,
+    "recipe": ["crystal", "crystal"],
+    "mods": { "crit_chance": 8, "lifesteal_pct": 5 }
+  },
+  {
+    "id": "longbow",
+    "name": "长弓",
+    "desc": "攻击力 +12%，射程 +18%（中件）",
+    "price": 12,
+    "kind": "item",
+    "tier": 2,
+    "recipe": ["dagger", "quiver"],
+    "mods": { "damage_pct": 12, "range_pct": 18 }
   },
 
   {
     "id": "shadow_blade",
     "name": "影刃",
-    "desc": "攻击力 +18%，移速 +8%；主动：向移动方向突进",
-    "price": 12,
-    "kind": "equipment",
-    "recipe": ["dagger", "soft_boots"],
-    "mods": { "damage_pct": 18, "speed_pct": 8 },
+    "desc": "攻击力 +28%，移速 +8%；主动：突进（大件）",
+    "price": 20,
+    "kind": "item",
+    "tier": 3,
+    "recipe": ["warblade", "soft_boots"],
+    "mods": { "damage_pct": 28, "speed_pct": 8 },
     "active": { "kind": "dash", "cooldown_ms": 8000, "power": 210 }
   },
   {
     "id": "blood_drink",
     "name": "血饮",
-    "desc": "攻击力 +15%，吸血 +6%（占 1 格）",
-    "price": 14,
-    "kind": "equipment",
-    "recipe": ["dagger", "bracer"],
-    "mods": { "damage_pct": 15, "lifesteal_pct": 6 }
+    "desc": "攻击力 +22%，吸血 +8%（大件）",
+    "price": 20,
+    "kind": "item",
+    "tier": 3,
+    "recipe": ["warblade", "bracer"],
+    "mods": { "damage_pct": 22, "lifesteal_pct": 8 }
   },
   {
     "id": "bulwark",
     "name": "壁垒",
-    "desc": "生命上限 +60；主动：获得 70 点护盾，持续 4 秒",
-    "price": 12,
-    "kind": "equipment",
-    "recipe": ["bracer", "bracer"],
-    "mods": { "max_hp": 60 },
-    "active": { "kind": "shield", "cooldown_ms": 12000, "power": 70, "duration_ms": 4000 }
+    "desc": "生命上限 +90；主动：80 点护盾（大件）",
+    "price": 18,
+    "kind": "item",
+    "tier": 3,
+    "recipe": ["tower_shield", "bracer"],
+    "mods": { "max_hp": 90 },
+    "active": { "kind": "shield", "cooldown_ms": 12000, "power": 80, "duration_ms": 4000 }
   },
   {
     "id": "storm_gloves",
     "name": "疾风手套",
-    "desc": "攻速 +25%，移速 +6%（占 1 格）",
-    "price": 12,
-    "kind": "equipment",
-    "recipe": ["gloves", "soft_boots"],
-    "mods": { "aspd_pct": 25, "speed_pct": 6 }
+    "desc": "攻速 +35%，移速 +10%（大件）",
+    "price": 18,
+    "kind": "item",
+    "tier": 3,
+    "recipe": ["swift_boots", "gloves"],
+    "mods": { "aspd_pct": 35, "speed_pct": 10 }
   },
   {
     "id": "titan_gauntlet",
     "name": "巨力护手",
-    "desc": "攻击力 +30%，多重射击 +1（占 1 格）",
-    "price": 20,
-    "kind": "equipment",
-    "recipe": ["dagger", "gloves"],
-    "mods": { "damage_pct": 30, "multishot": 1 }
+    "desc": "攻击力 +40%，多重射击 +1（大件）",
+    "price": 24,
+    "kind": "item",
+    "tier": 3,
+    "recipe": ["warblade", "gloves"],
+    "mods": { "damage_pct": 40, "multishot": 1 }
   },
   {
-    "id": "assassin_veil",
-    "name": "刺客面纱",
-    "desc": "暴击率 +12%，暴击伤害 +40%；主动：突进（占 1 格）",
-    "price": 18,
-    "kind": "equipment",
-    "recipe": ["crystal", "dagger"],
-    "mods": { "crit_chance": 12, "crit_mult": 40 },
-    "active": { "kind": "dash", "cooldown_ms": 7000, "power": 190 }
+    "id": "king_blade",
+    "name": "王者之刃",
+    "desc": "攻击力 +45%，暴击率 +10%（双中件合成）",
+    "price": 30,
+    "kind": "item",
+    "tier": 3,
+    "recipe": ["warblade", "tower_shield"],
+    "mods": { "damage_pct": 45, "crit_chance": 10 }
+  },
+  {
+    "id": "immortal_bulwark",
+    "name": "不朽壁垒",
+    "desc": "生命上限 +140；主动：120 点护盾（双中件合成）",
+    "price": 32,
+    "kind": "item",
+    "tier": 3,
+    "recipe": ["tower_shield", "tower_shield"],
+    "mods": { "max_hp": 140 },
+    "active": { "kind": "shield", "cooldown_ms": 10000, "power": 120, "duration_ms": 5000 }
   }
 ]

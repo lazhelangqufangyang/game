@@ -179,7 +179,7 @@ export class BattleScene extends Phaser.Scene {
     this.director = new WaveDirector(this.wave);
     this.cameras.main.fadeIn(180, 0, 0, 0);
 
-    this.actives = activeItems(config.items, this.run.equipment);
+    this.actives = activeItems(config.items, this.run.items);
     this.itemCd.clear();
     this.shield = 0;
     this.shieldUntil = 0;

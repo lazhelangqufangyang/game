@@ -1,7 +1,7 @@
 import type { RunState } from './types';
 
 export const SAVE_KEY = 'rogue-waves-save';
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 interface SaveFile {
   version: number;
@@ -41,7 +41,6 @@ export function parseRun(raw: string | null): RunState | null {
       'passives',
       'bond_members',
       'evolutions',
-      'equipment',
       'items',
       'shop_offers',
     ];

@@ -146,18 +146,22 @@
 
 ### 3.8 装备与商店（经济）
 
-- 装备分两类（`data/items.json` 的 `kind`）：
-  - **小件 `stat`**：只加属性，**不占装备格**，可重复持有（`run.items`）。
-  - **成品 `equipment`**：占 **1 格**，最多 **6 格**（`run.equipment`）。
-- **合成**：成品必须拥有全部配方组件才能购买（`recipe`，允许同一组件重复需求，如壁垒 = 护腕 ×2）；合成会**消耗组件**并支付合成费（`price`）。
-- **主动效果**：部分成品带 `active`（`dash` 位移 / `shield` 护盾），战斗中按 **4 / 5** 释放或点按钮，有独立冷却；护盾优先吸收伤害。
-- **消耗品**：立即生效（治疗药剂）。
-- 商店每波展示 **4 件**（2×2 网格，同一波内不重复），标出「成品 / 小件 / 消耗品」与配方是否满足；买不起、缺组件、装备满都会置灰。
-- **属性结算 = 所有已拥有物品之和**（小件 + 成品），与被动、羁绊、进化一起汇总。
+- 装备分三阶（`data/items.json` 的 `tier`）：**小件 1 / 中件 2 / 大件 3**。
+- **所有装备都占格，总共 6 格**（`run.items`）；买小件必须有空格。
+- **合成规则（校验强制）**：
+  - 中件 = **两个小件**（如战刃 = 短剑 + 手套）；
+  - 大件 = **一个中件 + 一个小件**（如影刃 = 战刃 + 软靴）；
+  - 也有大件 = **两个中件**（王者之刃 = 战刃 + 重盾；不朽壁垒 = 重盾 ×2）。
+  - 组件 tier 必须严格低于成品 tier；同一组件可重复需求。
+- 合成会**消耗组件**并支付合成费（`price`），净占用 `1 - 组件数 ≤ 0`，所以**格子满了也能合成**（这是腾格子的唯一办法）。
+- **主动效果**：部分大件带 `active`（`dash` 位移 / `shield` 护盾），战斗中按 **4 / 5** 或点按钮释放，有独立冷却；护盾优先吸收伤害。
+- **消耗品**：立即生效，不占格。
+- 商店每波 4 件（2×2，同一波不重复），**保证至少 2 个小件**；标出「小件 / 中件·合成 / 大件·合成」与配方 ✓/✗；买不起、缺组件、无空格会置灰并提示。
+- **属性结算 = 所有已拥有装备之和**，与被动、羁绊、进化一起汇总。
 
 ### 3.9 存档、音效与打击感
 
-- **存档**：`localStorage` 键 `rogue-waves-save`，版本号 `SAVE_VERSION = 1`；在 Prep 进入、购买、进化、开战、过关时自动保存；**死亡/通关后清档**。
+- **存档**：`localStorage` 键 `rogue-waves-save`，版本号 `SAVE_VERSION = 2`（装备结构变更时递增，旧档自动作废）；在 Prep 进入、购买、进化、开战、过关时自动保存；**死亡/通关后清档**。
 - 启动时若有合法存档则**自动续档**（Prep 顶部提示），Prep 左上角有「重开一局（清空存档）」。
 - 存档解析必须**容错**：损坏/版本不符一律当作无存档，不得卡住启动；`hp` 读档时夹到 `max_hp`。
 - **音效**：全部用 WebAudio 现场合成（不引入音频文件），首次指针/键盘交互时解锁；`M` 键静音。
@@ -193,14 +197,16 @@
 /src/
   main.ts         Phaser 启动、分辨率与缩放策略
   config/         加载 + 校验 /data
-  assets/         美术编译层：pixel.ts（矩阵→贴图）tiles.ts（地砖/暗角）sprites.ts（装配）visuals.ts（外观校验）
+  assets/         美术层：pixel.ts（矩阵→贴图）arena.ts（战斗背景插画）ambience.ts（火焰/浮尘/薄雾）tiles.ts（暗角）sprites.ts（装配）visuals.ts（外观校验）backdrop.ts（菜单背景）
+  art-preview.ts  背景预览页的入口（preview.html）
   scenes/         Boot / Prep / Battle / Result（+ UIScene overlay）
   systems/        wave summon resource levelup passive bond shop hero
   entities/       Player Enemy Summon Projectile Pickup
   ui/             槽位面板、三选一、商店、资源 HUD
   core/           eventBus、rng（带种子）、run（初始状态）、save（localStorage 存档）、sfx（WebAudio 合成音效）、types
 /tests/           Vitest：资源结算、8 格规则、羁绊进化、升级曲线、刷怪节奏
-/tools/           无头浏览器冒烟测试（Edge + puppeteer-core）+ 美术预览（sprite-sheet.mjs / art.mjs）
+/tools/           无头浏览器冒烟测试（Edge + puppeteer-core）+ 美术预览（sprite-sheet.mjs / art.mjs / arena-shot.mjs）
+/preview.html     只渲染战斗背景的预览页（不启动 Phaser、不依赖 /data）
 /docs/            美术管线等说明（art.md）
 /public/assets/   图片/音频（v0.1 未使用：美术全部程序化生成，见 docs/art.md）
 ```
@@ -240,8 +246,8 @@ npm run typecheck  # tsc --noEmit
   `$env:TEMP='D:\小游戏2\.tmp'; $env:TMP=$env:TEMP`
 - 无头 Edge 的 WebGL 会 `Framebuffer Unsupported`，冒烟测试统一用 `?renderer=canvas` 打开。
 - Vite 文件监听遇到原子写入的临时目录会 `EBUSY` 崩溃；`vite.config.ts` 已忽略 `*.tmpdir/**`，不要删这条配置。
-- 冒烟测试：`node tools/flow.mjs`（20 波全程流转/胜负）、`node tools/summon.mjs`（召唤/掉落/冷却/上限）、`node tools/levelup.mjs`（升级/刷新/满 8 格弃置）、`node tools/skills.mjs`（主动技能与多重射击）、`node tools/bonds.mjs`（羁绊 3/5 进化与腾格）、`node tools/meta.mjs`（进化/商店）、`node tools/shop.mjs`（合成与主动装备）、`node tools/m6.mjs`（存档续档/Boss 波/清场通关）、`node tools/mobile.mjs`（手机视口 + 触摸拖动）、`node tools/debug.mjs`（战斗运行时状态）。截图落在 `.shots/`。
-- 美术预览：`node tools/sprite-sheet.mjs` 把 `data/sprites.json` 渲染成 `.shots/sprites.png`（6 倍放大，不需要浏览器）；`node tools/art.mjs` 截 Prep/战斗/召唤三张验收图到 `.shots/`（需要 `npm run dev` 在跑）。
+- 冒烟测试：`node tools/flow.mjs`（20 波全程流转/胜负）、`node tools/summon.mjs`（召唤/掉落/冷却/上限）、`node tools/levelup.mjs`（升级/刷新/满 8 格弃置）、`node tools/skills.mjs`（主动技能与多重射击）、`node tools/bonds.mjs`（羁绊 3/5 进化与腾格）、`node tools/shop.mjs`（三阶合成与主动装备）、`node tools/m6.mjs`（存档续档/Boss 波/清场通关）、`node tools/mobile.mjs`（手机视口 + 触摸拖动）、`node tools/debug.mjs`（战斗运行时状态）。截图落在 `.shots/`。
+- 美术预览：`node tools/sprite-sheet.mjs` 把 `data/sprites.json` 渲染成 `.shots/sprites.png`（6 倍放大，不需要浏览器）；`node tools/art.mjs` 截 Prep/战斗/召唤三张验收图到 `.shots/`（需要 `npm run dev` 在跑）；`node tools/arena-shot.mjs` 只截战斗背景到 `.shots/40-arena.png`（走 `preview.html`，不依赖 /data）。
 
 ---
 
@@ -289,7 +295,7 @@ npm run typecheck  # tsc --noEmit
 | M4 | 元素羁绊 | 元素被动、羁绊检测、进化（释放格子 + 强化效果）、进化演出与图鉴提示 | 集齐即进化且不占格；弃置不破坏已进化（默认口径） | 已完成（2026-11-26） |
 | M5 | 经济与精粹 | 商店（消耗物/装备）、装备栏与效果、精粹与英雄进化分级 | 能花钱买到并生效；精粹进化改变属性/形态 | 已完成（2026-11-26） |
 | M6 | 打磨与平衡 | 数值曲线调优、波次多样性、Boss、存档、音效、移动端适配与 PWA | 手机浏览器可玩；一局 15–20 分钟节奏成立 | 已完成（2026-11-26） |
-| M7 | 装备体系 | 小件/成品双轨、合成配方、6 格限制、主动装备（位移/护盾）、20 波 | 组件可合成成品并消耗；主动装备可用；第 20 波通关 | 已完成（2026-11-26） |
+| M7 | 装备体系 | 三阶装备（小件/中件/大件）+ 合成配方 + **全部占 6 格** + 主动装备（位移/护盾）、20 波 | 两小件合中件、中+小合大件、双中件合大件均可用；满格可合成腾格；第 20 波通关 | 已完成（2026-11-26） |
 
 排期内固定动作：每个里程碑结束跑一次**手机窄屏实机验证**（或 DevTools 触摸模拟），把问题记入 `docs/`。
 
@@ -300,7 +306,7 @@ npm run typecheck  # tsc --noEmit
 1. **美术**：是否升级为定制美术 / 外包？（M6 前必须定）
    - 已定（v0.1）：走**程序化像素图** —— `data/sprites.json` 存字符矩阵、`src/assets/pixel.ts` 编译成贴图，零二进制资产、可 diff。详见 `docs/art.md`。
 
-> 已定：失败条件 = 英雄生命归零；波次方向 = 每波随机后整波固定（见 3.1）；召唤代价 = 冷却 + 同类型上限，不消耗资源；召唤物不与普通怪物交战（见 3.2）；三选一不可跳过、每级可花经济刷新一次；弃置无补偿（见 3.4 / 3.5）；羁绊 3 件合成 1 个、原三件腾格、后续成员仍占格、进化不失效（见 3.6）；单英雄 + 3 阶段进化、每阶段三选一（见 3.7）；商店每波 4 件、小件不占格、成品 6 格、可合成（见 3.8）；美术基线 = 程序化像素图（见 docs/art.md）。
+> 已定：失败条件 = 英雄生命归零；波次方向 = 每波随机后整波固定（见 3.1）；召唤代价 = 冷却 + 同类型上限，不消耗资源；召唤物不与普通怪物交战（见 3.2）；三选一不可跳过、每级可花经济刷新一次；弃置无补偿（见 3.4 / 3.5）；羁绊 3 件合成 1 个、原三件腾格、后续成员仍占格、进化不失效（见 3.6）；单英雄 + 3 阶段进化、每阶段三选一（见 3.7）；装备三阶、全部占 6 格、两小件合中件 / 中+小或双中件合大件（见 3.8）；美术基线 = 程序化像素图（见 docs/art.md）。
 
 > 回答后直接更新本文件，并同步调整排期。
 
@@ -319,4 +325,5 @@ npm run typecheck  # tsc --noEmit
 | 2026-11-26 | 美术基线上线 | 定美术走「像素图即数据」：`data/sprites.json` 字符矩阵 + `src/assets/pixel.ts` 编译贴图 + `src/assets/tiles.ts` 程序化地砖/暗角；加 `data/visuals.json` 控制缩放/投影/压扁/翻转。同步换掉圆点占位：战斗背景改地砖 + 装饰 + 暗角 + 来袭方向闸门，英雄 2 帧行走动画，敌人行走压扁与翻转，受击闪白，死亡碎块，资源球呼吸。补 `tools/sprite-sheet.mjs`、`tools/art.mjs` 与 `docs/art.md` |
 | 2026-11-26 | M5 完成 | 定单英雄、3 阶段进化（3/6/10 精粹）每阶段三选一、不可回退；加 `data/evolutions.json`、`systems/meta.ts`、`data/items.json` 商店（装备上限 3、消耗品即时生效）、Prep 双栏布局与进化弹窗；属性结算并入进化/装备；补 `tools/meta.mjs` |
 | 2026-11-26 | M6 完成 | 扩到 8 波（第 8 波 Boss 守关者，顶部血条）；难度曲线 hp_scale 1→2；localStorage 自动存档/续档/通关清档；WebAudio 合成音效（M 静音）；击杀顿帧 + 伤害数字；补 `core/save.ts`、`core/sfx.ts`、`core/run.ts`、`tests/save.test.ts`、`tools/m6.mjs` |
-| 2026-11-26 | M7 装备体系 | 装备拆成「小件（不占格）+ 成品（6 格）」双轨，加合成配方与组件消耗；成品可带主动效果（4/5 位移与护盾）并显示冷却；商店改 2×2 四件并标注配方状态；波次扩到 20（第 10/18/20 波 Boss）；补 `tools/shop.mjs`、`tests/meta.test.ts` 配方用例 |
+| 2026-11-26 | M7 装备体系 | 装备拆成三阶（小件 1 / 中件 2 / 大件 3），**全部占格、共 6 格**；配方规则：两小件→中件、中件+小件→大件、双中件→大件（校验强制组件 tier 更低）；合成消耗组件并净腾格，满格也能合；商店 2×2 四件并保证至少 2 件小件；存档版本升到 2；补 `tools/shop.mjs` 与配方单测 |
+| 2026-11-26 | 战斗背景重做（插画化） | 背景从平铺地砖改为**一张程序化绘制的夜景插画**：三层阶梯圆台 + 放射/同心石缝 + 遗迹裂纹苔痕 + 中央法阵 + 四角巨石与火盆 + 月光/火光的冷暖光照 + 暗角与胶片颗粒。加 `src/assets/arena.ts`（8–10ms 生成，单张 1280×720 贴图）与 `src/assets/ambience.ts`（火焰粒子、余烬、浮尘、双层薄雾、法阵呼吸）。支持把真插画放 `src/assets/arena*.png` 直接替换（`import.meta.glob`，无图时不产生 404）。补 `preview.html` + `src/art-preview.ts` + `tools/arena-shot.mjs`，可脱离 Phaser 单独看背景。顺手补 Boss「守关者」像素图（原为圆点兜底）与底部 UI 底衬（原会透出战场） |

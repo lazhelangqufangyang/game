@@ -23,79 +23,93 @@ await sleep(900);
 const snap = () =>
   page.evaluate(() => {
     const run = window.__game.registry.get('run');
-    return {
-      economy: run.economy,
-      items: run.items,
-      equipment: run.equipment,
-      shop: run.shop_offers,
-    };
+    return { economy: run.economy, items: run.items, shop: run.shop_offers };
   });
 
 await page.evaluate(() => {
   const run = window.__game.registry.get('run');
-  run.economy = 200;
+  run.economy = 300;
   window.__game.scene.keys.Prep.scene.restart();
 });
 await sleep(800);
 console.log('offers', (await snap()).shop);
 await page.screenshot({ path: `${OUT}/80-shop-grid.png` });
 
-// 点第一个商品格
+// 点第一个商品格（验证点击链路）
 await page.mouse.click(654 + 141, 350 + 64);
 await sleep(400);
 console.log('after click buy', await snap());
 
-// 直接补齐影刃配方并合成（等价于玩家先买组件再买成品）
-const forged = await page.evaluate(() => {
+// 完整配方链：短剑+手套=战刃；护腕+魔晶=重盾；战刃+重盾=王者之刃
+const chain = await page.evaluate(() => {
   const run = window.__game.registry.get('run');
   const all = window.__config.items;
   const byId = (id) => all.find((i) => i.id === id);
-  const meta = window.__game.scene.keys.Prep;
-  const buy = (id) => meta.purchase(byId(id));
+  const prep = window.__game.scene.keys.Prep;
   run.items = [];
-  run.equipment = [];
-  run.economy = 200;
-  buy('dagger');
-  buy('soft_boots');
-  buy('shadow_blade');
-  buy('bracer');
-  buy('bracer');
-  buy('bulwark');
-  return { items: run.items, equipment: run.equipment, economy: run.economy };
-});
-console.log('forged', forged);
-await sleep(500);
-await page.screenshot({ path: `${OUT}/81-equipment-6.png` });
+  run.economy = 300;
 
-// 进战斗：验证主动装备（4/5）与护盾
+  const steps = [];
+  const log = (label) => steps.push(`${label}:${run.items.length}格`);
+
+  prep.purchase(byId('dagger'));
+  prep.purchase(byId('gloves'));
+  log('两小件');
+  prep.purchase(byId('warblade'));
+  log('合中件');
+
+  prep.purchase(byId('bracer'));
+  prep.purchase(byId('crystal'));
+  prep.purchase(byId('tower_shield'));
+  log('再合中件');
+  prep.purchase(byId('king_blade'));
+  log('两中件合大件');
+
+  return { steps, items: run.items, economy: run.economy };
+});
+console.log('chain', chain);
+await sleep(500);
+await page.screenshot({ path: `${OUT}/81-recipes.png` });
+
+// 六格塞满小件时，合成仍可进行（净腾格）
+const full = await page.evaluate(() => {
+  const run = window.__game.registry.get('run');
+  const all = window.__config.items;
+  const byId = (id) => all.find((i) => i.id === id);
+  const prep = window.__game.scene.keys.Prep;
+  run.items = ['dagger', 'dagger', 'gloves', 'bracer', 'bracer', 'crystal'];
+  run.economy = 300;
+  const before = run.items.length;
+  prep.purchase(byId('warblade'));
+  return { before, after: run.items.length, items: run.items };
+});
+console.log('full slots combine', full);
+await sleep(400);
+await page.screenshot({ path: `${OUT}/82-full-slots.png` });
+
+// 进战斗验证主动装备
+await page.evaluate(() => {
+  const run = window.__game.registry.get('run');
+  run.items = ['shadow_blade', 'bulwark'];
+});
 await page.keyboard.press('Space');
 await sleep(1400);
 const actives = await page.evaluate(() => {
   const s = window.__game.scene.keys.Battle;
-  return {
-    actives: s.actives.map((a) => ({ id: a.id, kind: a.active?.kind })),
-    buttons: s.itemButtons.length,
-  };
+  return { actives: s.actives.map((a) => a.id), slots: window.__game.registry.get('run').items.length };
 });
 console.log('actives', actives);
 
-const before = await page.evaluate(() => Math.round(window.__game.scene.keys.Battle.player.x));
-await page.keyboard.down('KeyD');
-await sleep(400);
-await page.keyboard.up('KeyD');
 await page.keyboard.press('Digit4');
 await sleep(200);
-const after = await page.evaluate(() => Math.round(window.__game.scene.keys.Battle.player.x));
-console.log('item dash', { before, after });
-
 await page.keyboard.press('Digit5');
-await sleep(200);
+await sleep(250);
 const shield = await page.evaluate(() => {
   const s = window.__game.scene.keys.Battle;
-  return { shield: Math.round(s.shield), cd: Math.round(s.itemCd.get('bulwark') ?? 0) };
+  return { shield: Math.round(s.shield), dashCd: Math.round(s.itemCd.get('shadow_blade') ?? 0) };
 });
-console.log('shield', shield);
-await page.screenshot({ path: `${OUT}/82-item-actives.png` });
+console.log('actives fired', shield);
+await page.screenshot({ path: `${OUT}/83-item-actives.png` });
 
 console.log('errors', errors.length ? errors.slice(0, 5) : 'none');
 await browser.close();

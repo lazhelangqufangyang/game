@@ -16,7 +16,6 @@ export function createRun(hero: HeroDef): RunState {
     passives: [],
     bond_members: [],
     evolutions: [],
-    equipment: [],
     items: [],
     shop_offers: [],
   };

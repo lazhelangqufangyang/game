@@ -26,7 +26,7 @@ const sample = (): RunState => ({
   passives: ['edge', 'haste'],
   bond_members: ['ember'],
   evolutions: ['flame'],
-  equipment: ['boots'],
+  items: ['dagger', 'shadow_blade'],
   shop_offers: ['potion'],
 });
 

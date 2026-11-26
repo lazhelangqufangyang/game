@@ -392,16 +392,16 @@ function paintCornerBoulders(ctx: CanvasRenderingContext2D, rng: () => number): 
     ctx.fillStyle = shadow;
     ctx.fillRect(0, 0, ARENA_W, ARENA_H);
 
-    // 大块（部分被画面裁掉，像墙延伸到画外）
-    const bigs = 3;
+    // 大块（贴边、部分被画面裁掉，像墙延伸到画外）
+    const bigs = 2;
     for (let i = 0; i < bigs; i += 1) {
-      const dist = 40 + rng() * 90 + i * 46;
-      const lateral = (rng() - 0.5) * 150;
+      const dist = 26 + rng() * 40 + i * 34;
+      const lateral = (rng() - 0.5) * 120;
       drawRock(
         ctx,
-        corner.x + (dist + lateral * 0.35) * corner.sx,
-        corner.y + (dist * 0.7 - lateral * 0.4) * corner.sy,
-        34 + rng() * 30,
+        corner.x + (dist + lateral * 0.3) * corner.sx,
+        corner.y + (dist * 0.7 - lateral * 0.35) * corner.sy,
+        22 + rng() * 22,
         rng,
       );
     }
@@ -414,7 +414,7 @@ function paintCornerBoulders(ctx: CanvasRenderingContext2D, rng: () => number): 
         ctx,
         corner.x + (dist + lateral * 0.4) * corner.sx,
         corner.y + (dist * 0.62 - lateral * 0.45) * corner.sy,
-        9 + rng() * 20,
+        6 + rng() * 14,
         rng,
       );
     }

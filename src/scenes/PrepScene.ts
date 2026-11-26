@@ -7,12 +7,11 @@ import { clearRun, saveRun } from '../core/save';
 import { sfx } from '../core/sfx';
 import type { EvolutionStage, ItemDef, RunState } from '../core/types';
 import {
-  MAX_EQUIPMENT,
+  MAX_SLOTS,
   buyItem,
   chooseEvolution,
   findItem,
   nextStage,
-  ownedCount,
   recipeStatus,
   rollShop,
 } from '../systems/meta';
@@ -165,34 +164,32 @@ export class PrepScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
 
-    // 装备：6 格，只有成品占格
-    const eqNames = run.equipment.map((id) => findItem(config.items, id)?.name ?? id);
+    // 装备：所有装备都占格
+    const eqNames = run.items
+      .map((id) => findItem(config.items, id)?.name ?? id)
+      .join('、');
     this.ui.add(
       this.add
-        .text(cx, top + 212, `装备 ${run.equipment.length}/${MAX_EQUIPMENT}：${eqNames.join('、') || '无'}`, {
+        .text(cx, top + 212, `装备 ${run.items.length}/${MAX_SLOTS}：${eqNames || '无'}`, {
           ...TEXT_STYLE,
           fontSize: '15px',
-          color: COLORS.gold,
+          color: run.items.length >= MAX_SLOTS ? COLORS.danger : COLORS.gold,
         })
         .setOrigin(0.5),
     );
 
-    // 小件（不占格）
-    const componentLines: string[] = [];
-    const seen = new Set<string>();
-    for (const id of run.items) {
-      if (seen.has(id)) continue;
-      const item = findItem(config.items, id);
-      if (item?.kind !== 'stat') continue;
-      seen.add(id);
-      componentLines.push(`${item.name}×${ownedCount(run.items, id)}`);
-    }
+    // 合成进度提示
+    const readyCount = config.items.filter((item) => {
+      if (!item.recipe) return false;
+      const status = recipeStatus(item, run.items);
+      return status.ok;
+    }).length;
     this.ui.add(
       this.add
-        .text(cx, top + 244, `小件（不占格）：${componentLines.join('  ') || '无'}`, {
+        .text(cx, top + 244, `可合成：${readyCount} 件（组件会被消耗，腾出格子）`, {
           ...TEXT_STYLE,
           fontSize: '14px',
-          color: COLORS.dim,
+          color: readyCount > 0 ? COLORS.accent : COLORS.dim,
         })
         .setOrigin(0.5),
     );
@@ -351,7 +348,7 @@ export class PrepScene extends Phaser.Scene {
       this.add.text(
         x + 18,
         y + h - 26,
-        `小件不占格 · 成品占 1 格（${MAX_EQUIPMENT} 格）· 组件会被合成消耗 · 每波刷新`,
+        `每件装备都占 1 格（${MAX_SLOTS} 格）· 两个小件合中件、中件+小件合大件 · 每波刷新`,
         { ...TEXT_STYLE, fontSize: '12px', color: COLORS.dim },
       ),
     );
@@ -359,7 +356,7 @@ export class PrepScene extends Phaser.Scene {
 
   private shopCell(item: ItemDef, x: number, y: number, w: number, h: number): void {
     const recipe = item.recipe ? recipeStatus(item, this.run.items) : { ok: true, missing: [] };
-    const slotsFull = item.kind === 'equipment' && this.run.equipment.length >= MAX_EQUIPMENT;
+    const slotsFull = !item.recipe && this.run.items.length >= MAX_SLOTS;
     const affordable = this.run.economy >= item.price;
     const usable = affordable && recipe.ok && !slotsFull;
 
@@ -375,7 +372,13 @@ export class PrepScene extends Phaser.Scene {
     this.ui.add(box);
 
     const kindTag =
-      item.kind === 'consumable' ? '消耗品' : item.kind === 'stat' ? '小件' : '成品装备';
+      item.kind === 'consumable'
+        ? '消耗品'
+        : item.recipe
+          ? item.tier === 2
+            ? '中件 · 合成'
+            : '大件 · 合成'
+          : '小件';
 
     this.ui.add(
       this.add.text(x + 12, y + 10, item.name, {

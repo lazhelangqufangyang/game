@@ -143,10 +143,12 @@ export interface ItemDef {
   name: string;
   desc: string;
   price: number;
-  kind: 'consumable' | 'stat' | 'equipment';
+  kind: 'consumable' | 'item';
+  /** 1 = 小件，2 = 中件，3 = 大件。 */
+  tier?: 1 | 2 | 3;
   mods?: Partial<Mods>;
   heal?: number;
-  /** 合成配方：拥有全部组件才能合成（组件会被消耗）。 */
+  /** 合成配方：组件必须是更低一阶（允许两个中件合成大件），组件会被消耗。 */
   recipe?: string[];
   active?: ItemActive;
 }
@@ -209,7 +211,6 @@ export interface RunState {
   passives: string[];
   bond_members: string[];
   evolutions: string[];
-  equipment: string[];
   items: string[];
   shop_offers: string[];
 }

@@ -46,7 +46,7 @@ const evolutions = [
 ];
 const items = [
   { id: 'potion', name: '药', desc: 'd', price: 8, kind: 'consumable', heal: 20 },
-  { id: 'ring', name: '戒', desc: 'd', price: 10, kind: 'equipment', mods: { damage_pct: 5 } },
+  { id: 'ring', name: '戒', desc: 'd', price: 10, kind: 'item', tier: 1, mods: { damage_pct: 5 } },
 ];
 
 const src = (over: Record<string, unknown> = {}) => ({

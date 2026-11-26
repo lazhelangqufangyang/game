@@ -376,7 +376,7 @@ export function parseEvolutions(raw: unknown): EvolutionStage[] {
 export function parseItems(raw: unknown): ItemDef[] {
   const list = asArray(raw, 'items');
   const seen = new Set<string>();
-  return list.map((item, i) => {
+  const parsed: ItemDef[] = list.map((item, i) => {
     const path = `items[${i}]`;
     const o = asObject(item, path);
     const id = str(o.id, `${path}.id`);
@@ -384,20 +384,32 @@ export function parseItems(raw: unknown): ItemDef[] {
     seen.add(id);
 
     const kind = str(o.kind, `${path}.kind`);
-    if (kind !== 'consumable' && kind !== 'stat' && kind !== 'equipment') {
-      fail(`${path}.kind`, `应为 consumable / stat / equipment，实际为 "${kind}"`);
+    if (kind !== 'consumable' && kind !== 'item') {
+      fail(`${path}.kind`, `应为 consumable / item，实际为 "${kind}"`);
     }
     if (kind === 'consumable' && o.heal === undefined) {
       fail(`${path}.heal`, '消耗品必须配置效果（heal）');
     }
 
+    let tier: ItemDef['tier'];
+    if (kind === 'item') {
+      tier = num(o.tier, `${path}.tier`, { min: 1, integer: true }) as 1 | 2 | 3;
+      if (tier < 1 || tier > 3) fail(`${path}.tier`, '只能为 1 / 2 / 3（小件 / 中件 / 大件）');
+    }
+
     let recipe: string[] | undefined;
     if (o.recipe !== undefined) {
-      if (kind !== 'equipment') fail(`${path}.recipe`, '只有 equipment 可以有合成配方');
+      if (kind !== 'item') fail(`${path}.recipe`, '只有装备可以有合成配方');
       recipe = asArray(o.recipe, `${path}.recipe`).map((r, ri) =>
         str(r, `${path}.recipe[${ri}]`),
       );
       if (recipe.length < 2) fail(`${path}.recipe`, '配方至少需要 2 个组件');
+    }
+    if (kind === 'item' && tier === 1 && recipe) {
+      fail(`${path}.recipe`, '小件（tier 1）不能有配方');
+    }
+    if (kind === 'item' && tier && tier > 1 && !recipe) {
+      fail(`${path}.recipe`, `${tier === 2 ? '中件' : '大件'}必须配置合成配方`);
     }
 
     let active: ItemDef['active'];
@@ -415,7 +427,7 @@ export function parseItems(raw: unknown): ItemDef[] {
         duration_ms:
           ao.duration_ms === undefined ? undefined : num(ao.duration_ms, `${ap}.duration_ms`, { min: 1 }),
       };
-      if (kind !== 'equipment') fail(`${ap}`, '只有 equipment 可以有主动效果');
+      if (kind !== 'item') fail(ap, '只有装备可以有主动效果');
     }
 
     return {
@@ -424,12 +436,36 @@ export function parseItems(raw: unknown): ItemDef[] {
       desc: str(o.desc, `${path}.desc`),
       price: num(o.price, `${path}.price`, { min: 0 }),
       kind: kind as ItemDef['kind'],
+      tier,
       mods: o.mods === undefined ? undefined : parseMods(o.mods, `${path}.mods`),
       heal: o.heal === undefined ? undefined : num(o.heal, `${path}.heal`, { min: 1 }),
       recipe,
       active,
     };
   });
+
+  // 配方必须引用已存在的物品，且组件层级严格低于成品（小→中→大；允许两个中件合大件）
+  const byId = new Map(parsed.map((item) => [item.id, item]));
+  parsed.forEach((item) => {
+    if (!item.recipe) return;
+    for (const componentId of item.recipe) {
+      const component = byId.get(componentId);
+      if (!component) {
+        fail(`items.${item.id}.recipe`, `未找到组件 "${componentId}"`);
+      }
+      if (component.kind !== 'item') {
+        fail(`items.${item.id}.recipe`, `组件 "${componentId}" 不是装备`);
+      }
+      if ((component.tier ?? 0) >= (item.tier ?? 0)) {
+        fail(
+          `items.${item.id}.recipe`,
+          `组件 "${componentId}"（tier ${component.tier}）必须低于成品（tier ${item.tier}）`,
+        );
+      }
+    }
+  });
+
+  return parsed;
 }
 
 export interface ConfigSources {

@@ -1,8 +1,8 @@
 import type { EvolutionOption, EvolutionStage, ItemDef, Mods, RunState } from '../core/types';
 import { addMods, emptyMods } from './passives';
 
-/** 只有带特殊效果的成品装备占格；纯属性小件不占格。 */
-export const MAX_EQUIPMENT = 6;
+/** 所有装备（小件 / 中件 / 大件）都占格，总共 6 格。 */
+export const MAX_SLOTS = 6;
 
 function optionIndex(stages: readonly EvolutionStage[]): Map<string, EvolutionOption> {
   const map = new Map<string, EvolutionOption>();
@@ -62,7 +62,7 @@ export function findItem(items: readonly ItemDef[], id: string): ItemDef | undef
   return items.find((item) => item.id === id);
 }
 
-/** 所有已拥有物品（小件 + 成品）的属性总和。 */
+/** 所有已拥有装备的属性总和。 */
 export function inventoryMods(items: readonly ItemDef[], owned: readonly string[]): Mods {
   const mods = emptyMods();
   for (const id of owned) {
@@ -93,9 +93,9 @@ export function recipeStatus(
   return { ok: missing.length === 0, missing };
 }
 
-/** 已装备、且带主动效果的成品（战斗内按 4/5 释放）。 */
-export function activeItems(items: readonly ItemDef[], equipment: readonly string[]): ItemDef[] {
-  return equipment
+/** 已拥有、且带主动效果的装备（战斗内按 4/5 释放）。 */
+export function activeItems(items: readonly ItemDef[], owned: readonly string[]): ItemDef[] {
+  return owned
     .map((id) => findItem(items, id))
     .filter((item): item is ItemDef => !!item && !!item.active);
 }
@@ -104,7 +104,7 @@ export type BuyResult = 'ok' | 'poor' | 'slots' | 'recipe';
 
 export function buyItem(
   item: ItemDef,
-  run: Pick<RunState, 'economy' | 'hp' | 'max_hp' | 'equipment' | 'items'>,
+  run: Pick<RunState, 'economy' | 'hp' | 'max_hp' | 'items'>,
 ): BuyResult {
   if (run.economy < item.price) return 'poor';
 
@@ -114,36 +114,51 @@ export function buyItem(
     return 'ok';
   }
 
-  if (item.kind === 'stat') {
+  // 合成：组件会被消耗，净占用 = 1 - 组件数 ≤ 0，永远放得下
+  if (item.recipe) {
+    const status = recipeStatus(item, run.items);
+    if (!status.ok) return 'recipe';
+
     run.economy -= item.price;
-    run.items = [...run.items, item.id];
+    const remaining = [...run.items];
+    for (const component of item.recipe) {
+      const index = remaining.indexOf(component);
+      if (index >= 0) remaining.splice(index, 1);
+    }
+    run.items = [...remaining, item.id];
     return 'ok';
   }
 
-  // 成品装备：需要配方组件 + 有空装备格
-  if (run.equipment.length >= MAX_EQUIPMENT) return 'slots';
-  const status = recipeStatus(item, run.items);
-  if (!status.ok) return 'recipe';
-
+  // 小件：直接占 1 格
+  if (run.items.length >= MAX_SLOTS) return 'slots';
   run.economy -= item.price;
-  const remaining = [...run.items];
-  for (const component of item.recipe ?? []) {
-    const index = remaining.indexOf(component);
-    if (index >= 0) remaining.splice(index, 1);
-  }
-  run.items = [...remaining, item.id];
-  run.equipment = [...run.equipment, item.id];
+  run.items = [...run.items, item.id];
   return 'ok';
 }
 
-/** 每波随机 3 件商品，同一波内不重复。 */
+/** 每波 4 件商品：保证至少 2 个小件，其余从全部装备里抽。 */
 export function rollShop(items: readonly ItemDef[], rng: () => number, count = 4): string[] {
-  const pool = items.slice();
+  const smalls = items.filter((i) => i.kind === 'item' && i.tier === 1);
+  const others = items.filter((i) => i.kind === 'item' && (i.tier ?? 1) > 1);
   const picked: string[] = [];
-  while (pool.length > 0 && picked.length < count) {
-    const index = Math.floor(rng() * pool.length);
-    const [item] = pool.splice(index, 1);
+
+  const draw = (pool: ItemDef[]) => {
+    while (pool.length > 0 && picked.length < count) {
+      const index = Math.floor(rng() * pool.length);
+      const [item] = pool.splice(index, 1);
+      if (item) picked.push(item.id);
+    }
+  };
+
+  const smallPool = smalls.slice();
+  const smallTarget = Math.min(2, count);
+  for (let i = 0; i < smallTarget; i += 1) {
+    const index = Math.floor(rng() * smallPool.length);
+    const [item] = smallPool.splice(index, 1);
     if (item) picked.push(item.id);
   }
+
+  draw(others.slice());
+  if (picked.length < count) draw(items.filter((i) => i.kind === 'item').slice());
   return picked;
 }
