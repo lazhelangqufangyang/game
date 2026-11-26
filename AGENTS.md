@@ -199,21 +199,22 @@
   items.json      消耗物与装备（商店）
   heroes.json     英雄基础属性与进化阶段
   sprites.json    像素图：角色/怪/召唤物/资源球/子弹/碎块的字符矩阵（美术即数据）
-  visuals.json    实体外观：显示缩放、地面投影、行走压扁、翻转、旋转
+  visuals.json    实体外观：显示缩放、地面投影、行走压扁、翻转、旋转、行走帧间隔
+  art-prompts.json AI 出图规格：每个单位的逻辑尺寸 / 建议生成尺寸 / 主色 / subject / 姿势（art-cards 由它生成）
 /src/
   main.ts         Phaser 启动、分辨率与缩放策略
   config/         加载 + 校验 /data
   assets/         美术层：pixel.ts（矩阵→贴图）poses.ts（行走/受击/死亡帧派生）arena.ts（战斗背景插画）ambience.ts（火焰/浮尘/薄雾）tiles.ts（暗角）sprites.ts（装配）visuals.ts（外观校验）backdrop.ts（菜单背景）
   art-preview.ts  美术预览页入口（preview.html：背景 / 姿势总览）
-  scenes/         Boot / Battle / Result（Prep 已废弃，不再进入流程）
+  scenes/         Boot / Battle / Result（PrepScene 已删除，不要再加回来）
   systems/        wave summon resource levelup passive bond shop hero
   entities/       Player Enemy Summon Projectile Pickup
   ui/             槽位面板、三选一、商店、资源 HUD
   core/           eventBus、rng（带种子）、run（初始状态）、save（localStorage 存档）、sfx（WebAudio 合成音效）、types
 /tests/           Vitest：资源结算、8 格规则、羁绊进化、升级曲线、刷怪节奏
-/tools/           无头浏览器冒烟测试（Edge + puppeteer-core）+ 美术预览（sprite-sheet.mjs / art.mjs / arena-shot.mjs）
+/tools/           无头浏览器冒烟测试（Edge + puppeteer-core）+ 美术预览（sprite-sheet.mjs / art.mjs / arena-shot.mjs / art-cards.mjs）
 /preview.html     美术预览页：无参数看战斗背景，`?sheet=1` 看所有角色 × 4 姿势帧
-/docs/            美术管线（art.md）、AI 出图规格（art-prompts.md）
+/docs/            美术管线（art.md）、AI 出图规格（art-prompts.md）、出图交付物（art/prompt-cards.png、art/style-reference.png）
 /public/assets/   图片/音频（v0.1 未使用：美术全部程序化生成，见 docs/art.md）
 ```
 
@@ -252,7 +253,7 @@ npm run typecheck  # tsc --noEmit
   `$env:TEMP='D:\小游戏2\.tmp'; $env:TMP=$env:TEMP`
 - 无头 Edge 的 WebGL 会 `Framebuffer Unsupported`，冒烟测试统一用 `?renderer=canvas` 打开。
 - Vite 文件监听遇到原子写入的临时目录会 `EBUSY` 崩溃；`vite.config.ts` 已忽略 `*.tmpdir/**`，不要删这条配置。
-- 冒烟测试：`node tools/flow.mjs`（20 波全程流转/胜负）、`node tools/intermission.mjs`（波间结算/买卖/设置）、`node tools/summon.mjs`（召唤/掉落/冷却/上限）、`node tools/levelup.mjs`（升级/刷新/满 8 格弃置）、`node tools/skills.mjs`（主动技能与多重射击）、`node tools/bonds.mjs`（羁绊 3/5 进化与腾格）、`node tools/shop.mjs`（三阶合成与主动装备）、`node tools/m6.mjs`（存档续档/Boss 波/清场通关）、`node tools/mobile.mjs`（手机视口 + 触摸拖动）、`node tools/debug.mjs`（战斗运行时状态）。截图落在 `.shots/`。
+- 冒烟测试：`node tools/flow.mjs`（20 波全程流转/胜负）、`node tools/intermission.mjs`（波间结算/买卖/设置）、`node tools/dash.mjs`（冲刺位移曲线，验证不是瞬移）、`node tools/summon.mjs`（召唤/掉落/冷却/上限）、`node tools/levelup.mjs`（升级/刷新/满 8 格弃置）、`node tools/skills.mjs`（主动技能与多重射击）、`node tools/bonds.mjs`（羁绊 3/5 进化与腾格）、`node tools/shop.mjs`（三阶合成与主动装备）、`node tools/m6.mjs`（存档续档/Boss 波/清场通关）、`node tools/mobile.mjs`（手机视口 + 触摸拖动）、`node tools/debug.mjs`（战斗运行时状态）。截图落在 `.shots/`。
 - 美术预览：`node tools/sprite-sheet.mjs` 把 `data/sprites.json` 渲染成 `.shots/sprites.png`（6 倍放大，不需要浏览器）；`node tools/art.mjs` 截 Prep/战斗/召唤三张验收图到 `.shots/`（需要 `npm run dev` 在跑）；`node tools/arena-shot.mjs` 只截战斗背景到 `.shots/40-arena.png`（走 `preview.html`，不依赖 /data）。
 
 ---
@@ -334,5 +335,7 @@ npm run typecheck  # tsc --noEmit
 | 2026-11-26 | 战斗内结算 + 设置 | 移除波间 Prep 场景：清完一波在战斗内弹出结算面板（下一波预告 / 12 秒倒计时 / 商店 2×2 / 进化 / 装备回收 / 空格开下一波），Boot 直接进 Battle；右上角新增「⚙ 设置」（音效开关、重开一局、返回），设置与结算期间暂停物理与移动输入；补 `tools/intermission.mjs` |
 | 2026-11-26 | M7 装备体系 | 装备拆成三阶（小件 1 / 中件 2 / 大件 3），**全部占格、共 6 格**；配方规则：两小件→中件、中件+小件→大件、双中件→大件（校验强制组件 tier 更低）；合成消耗组件并净腾格，满格也能合；商店 2×2 四件并保证至少 2 件小件；存档版本升到 2；补 `tools/shop.mjs` 与配方单测 |
 | 2026-11-26 | 硬核化 + 打怪掉落 | 英雄生命 25 / 每级 +3 / 移速 320；怪物数量上调、hp_scale 到 3.5；接触伤害改用更小的 `attack_range`；普通怪给经济+经验，精英给精粹，Boss 给 5 精粹；治疗药剂进入商店池；装备半价回收；补 `tools/balance.mjs` |
+| 2026-11-26 | 清理 + 取消瞬移 | 删除 `src/scenes/PrepScene.ts` 并从场景表移除；冲刺（技能 Q 与装备 4 键）由 `body.reset()` 瞬移改为 **0.16 秒高速位移 + 残影 + 短暂无敌**，不再瞬移；波间保留玩家坐标（`player_pos`），下一波不再突然回中心；补 `tools/dash.mjs` |
 | 2026-11-26 | 战斗背景重做（插画化） | 背景从平铺地砖改为**一张程序化绘制的夜景插画**：三层阶梯圆台 + 放射/同心石缝 + 遗迹裂纹苔痕 + 中央法阵 + 四角巨石与火盆 + 月光/火光的冷暖光照 + 暗角与胶片颗粒。加 `src/assets/arena.ts`（8–10ms 生成，单张 1280×720 贴图）与 `src/assets/ambience.ts`（火焰粒子、余烬、浮尘、双层薄雾、法阵呼吸）。支持把真插画放 `src/assets/arena*.png` 直接替换（`import.meta.glob`，无图时不产生 404）。补 `preview.html` + `src/art-preview.ts` + `tools/arena-shot.mjs`，可脱离 Phaser 单独看背景。顺手补 Boss「守关者」像素图（原为圆点兜底）与底部 UI 底衬（原会透出战场） |
 | 2026-11-26 | 姿势帧 + 缩放清晰化 + AI 出图规格 | ① 加 `src/assets/poses.ts`：每个会动单位自动派生 **行走（-walk1）/ 受击（-hurt）/ 死亡（-death）** 三套帧，`walk_ms` 控制帧速（`visuals.json`），可在 `sprites.json` 里用同名 `walk`/`hurt`/`death` 手画覆盖；`bob` 降为 0.02–0.05 的余动。② 手机非整数缩放：`pixelArt` + `autoRound` + CSS `image-rendering: pixelated` + 文字 `resolution: 2`，画布 CSS 尺寸由 693.33 变为整数 693。③ 新 `docs/art-prompts.md`：路线 B（AI 出图 → 我接入）的完整规格：逻辑尺寸表、风格块、每个单位的 prompt、negative、生成参数、交付命名、验收清单。④ `preview.html?sheet=1` 出姿势总览，`node tools/arena-shot.mjs sheet` 截图 |
+| 2026-11-26 | AI 出图交付物（图片） | 加 `data/art-prompts.json` 作为出图规格唯一数据源；加 `preview.html?cards=1`（prompt 卡片）与 `?ref=1`（透明底风格参考图），以及 `tools/art-cards.mjs` 一键导出 `docs/art/prompt-cards.png`（10 张可复制 prompt + 通用负面词）与 `docs/art/style-reference.png`（img2img 参考图）；`tools/art.mjs` 适配「无 Prep 场景」的新流程并自动关掉波间/升级面板 |

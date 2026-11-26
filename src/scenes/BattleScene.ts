@@ -86,6 +86,10 @@ export class BattleScene extends Phaser.Scene {
   private pointerActive = false;
   private pointerTarget = new Phaser.Math.Vector2();
   private lastMove = new Phaser.Math.Vector2(1, 0);
+  private dashMs = 0;
+  private readonly dashDir = new Phaser.Math.Vector2(1, 0);
+  private dashSpeed = 0;
+  private dashGhostAt = 0;
 
   private attackCd = 0;
   private invuln = 0;
@@ -170,7 +174,10 @@ export class BattleScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, ARENA_W, ARENA_H);
 
     const heroVisual = visualOf('hero');
-    this.player = this.physics.add.sprite(ARENA_W / 2, ARENA_H / 2, 'hero').setDepth(5);
+    const savedPos = this.registry.get('player_pos') as { x: number; y: number } | undefined;
+    const px = Phaser.Math.Clamp(savedPos?.x ?? ARENA_W / 2, 40, ARENA_W - 40);
+    const py = Phaser.Math.Clamp(savedPos?.y ?? ARENA_H / 2, 80, ARENA_H - 120);
+    this.player = this.physics.add.sprite(px, py, 'hero').setDepth(5);
     this.player.setScale(heroVisual.scale);
     this.player.setCircle(config.hero.radius);
     this.player.setCollideWorldBounds(true);
@@ -390,7 +397,7 @@ export class BattleScene extends Phaser.Scene {
     this.summonSystem.update(dt);
     this.tickCooldowns(dt);
     this.tickItemCooldowns(dt);
-    this.updateMovement();
+    this.updateMovement(dt);
     this.updateCombat(dt);
     this.updateSpawns(dt);
     this.updateSummonMovement();
@@ -461,12 +468,30 @@ export class BattleScene extends Phaser.Scene {
     sfx.play('evolve');
   }
 
+  /** 冲刺：一段时间内高速移动（不是瞬移），带残影与短暂无敌。 */
+  private startDash(distance: number, invulnMs: number): void {
+    const dir = this.lastMove.clone();
+    if (dir.lengthSq() < 0.01) dir.set(1, 0);
+    dir.normalize();
+
+    const durationSec = 0.16;
+    this.dashDir.copy(dir);
+    this.dashSpeed = distance / durationSec;
+    this.dashMs = durationSec * 1000;
+    this.dashGhostAt = 0;
+    this.invuln = Math.max(this.invuln, invulnMs);
+  }
+
+  private spawnDashGhost(): void {
+    const ghost = this.add
+      .image(this.player.x, this.player.y, 'hero')
+      .setAlpha(0.28)
+      .setDepth(3);
+    this.tweens.add({ targets: ghost, alpha: 0, duration: 240, onComplete: () => ghost.destroy() });
+  }
+
   private itemDash(power: number): void {
-    const dir = this.lastMove.clone().normalize();
-    const nx = Phaser.Math.Clamp(this.player.x + dir.x * power, 24, ARENA_W - 24);
-    const ny = Phaser.Math.Clamp(this.player.y + dir.y * power, 24, ARENA_H - 24);
-    this.invuln = Math.max(this.invuln, 350);
-    (this.player.body as Phaser.Physics.Arcade.Body).reset(nx, ny);
+    this.startDash(power, 350);
   }
 
   private tickCooldowns(dt: number): void {
@@ -483,7 +508,18 @@ export class BattleScene extends Phaser.Scene {
     this.updateItemButtons();
   }
 
-  private updateMovement(): void {
+  private updateMovement(dt: number): void {
+    if (this.dashMs > 0) {
+      this.dashMs -= dt;
+      this.player.setVelocity(this.dashDir.x * this.dashSpeed, this.dashDir.y * this.dashSpeed);
+      this.dashGhostAt -= dt;
+      if (this.dashGhostAt <= 0) {
+        this.spawnDashGhost();
+        this.dashGhostAt = 45;
+      }
+      return;
+    }
+
     const speed = this.stats.speed;
     let vx = 0;
     let vy = 0;
@@ -766,28 +802,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private castDash(def: SkillDef): void {
-    const dir = this.lastMove.clone().normalize();
-    const nx = Phaser.Math.Clamp(this.player.x + dir.x * def.power, 24, ARENA_W - 24);
-    const ny = Phaser.Math.Clamp(this.player.y + dir.y * def.power, 24, ARENA_H - 24);
-    this.invuln = Math.max(this.invuln, 450);
-
-    for (let i = 0; i < 5; i += 1) {
-      const ghost = this.add
-        .image(
-          Phaser.Math.Linear(this.player.x, nx, i / 5),
-          Phaser.Math.Linear(this.player.y, ny, i / 5),
-          'hero',
-        )
-        .setAlpha(0.35)
-        .setDepth(3);
-      this.tweens.add({
-        targets: ghost,
-        alpha: 0,
-        duration: 220 + i * 40,
-        onComplete: () => ghost.destroy(),
-      });
-    }
-    (this.player.body as Phaser.Physics.Arcade.Body).reset(nx, ny);
+    this.startDash(def.power, 450);
   }
 
   private castNova(def: SkillDef): void {
@@ -1800,6 +1815,7 @@ export class BattleScene extends Phaser.Scene {
 
   private startNextWave(): void {
     if (!this.intermission) return;
+    this.registry.set('player_pos', { x: this.player.x, y: this.player.y });
     this.countdownEvent?.remove();
     this.countdownEvent = null;
     this.intermission.destroy(true);

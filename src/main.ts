@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { config } from './config';
 import { sfx } from './core/sfx';
 import { BootScene } from './scenes/BootScene';
-import { PrepScene } from './scenes/PrepScene';
 import { BattleScene } from './scenes/BattleScene';
 import { ResultScene } from './scenes/ResultScene';
 
@@ -32,7 +31,7 @@ const game = new Phaser.Game({
     arcade: { debug: false, gravity: { x: 0, y: 0 } },
   },
   render: { pixelArt: true, antialias: false, roundPixels: true },
-  scene: [BootScene, PrepScene, BattleScene, ResultScene],
+  scene: [BootScene, BattleScene, ResultScene],
 });
 
 void game;

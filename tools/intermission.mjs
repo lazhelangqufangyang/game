@@ -79,6 +79,15 @@ console.log('next wave', next);
 await page.screenshot({ path: `${OUT}/98-next-wave.png` });
 
 // 设置面板
+await page.evaluate(() => {
+  const s = window.__game.scene.keys.Battle;
+  if (s.overlayOpen) {
+    s.overlay?.destroy();
+    s.overlay = null;
+    s.overlayOpen = false;
+    s.physics.resume();
+  }
+});
 await page.mouse.click(1240, 86);
 await sleep(400);
 const settings = await page.evaluate(() => {
