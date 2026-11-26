@@ -1,0 +1,214 @@
+{
+  "_comment": [
+    "像素图定义：每张图是一组等宽字符行，'.' 为透明。",
+    "颜色角色由 data/enemies.json / data/summons.json / data/heroes.json 的 color 派生（见 src/assets/pixel.ts）：",
+    "o=描边 d=暗部 b=主色 l=亮部 h=高光 w=眼白 k=瞳 a=强调色。",
+    "某张图需要固定颜色时，在本条目的 palette 里覆盖对应角色即可。",
+    "改图不影响任何玩法逻辑，只影响 BootScene 编译出来的贴图。"
+  ],
+  "hero": {
+    "palette": { "a": "#ffd166" },
+    "rows": [
+      "..................",
+      "..................",
+      "......oooo........",
+      ".....oddddo.......",
+      "....oddddddo......",
+      "...oddddddddo.....",
+      "...odlllllldo.....",
+      "...odlwwllwwldo...",
+      "...odlwkllkwldo...",
+      "...odlllllllldo...",
+      "...obddddddddbo...",
+      "...obbbbbbbbbbo...",
+      "...obbbbbbbbbbo...",
+      "...obbbaaaabbbo...",
+      "...obbbbbbbbbbo...",
+      "....oddddddddo....",
+      "....oddddddddo....",
+      "....oobo...oboo...",
+      ".....oo.....oo....",
+      ".................."
+    ]
+  },
+  "hero_alt": {
+    "palette": { "a": "#ffd166" },
+    "rows": [
+      "..................",
+      "..................",
+      "......oooo........",
+      ".....oddddo.......",
+      "....oddddddo......",
+      "...oddddddddo.....",
+      "...odlllllldo.....",
+      "...odlwwllwwldo...",
+      "...odlwkllkwldo...",
+      "...odlllllllldo...",
+      "...obddddddddbo...",
+      "...obbbbbbbbbbo...",
+      "...obbbbbbbbbbo...",
+      "...obbbaaaabbbo...",
+      "...obbbbbbbbbbo...",
+      "....oddddddddo....",
+      "....oddddddddo....",
+      "....oboo...obbo...",
+      "....oo.......oo...",
+      ".................."
+    ]
+  },
+  "grunt": {
+    "rows": [
+      "................",
+      "................",
+      "....o......o....",
+      "...obo....obo...",
+      "...obboooobbo...",
+      "..obbbbbbbbbbo..",
+      "..obllllllllbo..",
+      "..oblwwllwwlbo..",
+      "..oblwkllkwlbo..",
+      "..obllllllllbo..",
+      "..obbdddddddbo..",
+      "..obbbbbbbbbbo..",
+      "..obbbbbbbbbbo..",
+      "...oobbbbbboo...",
+      "....oo....oo....",
+      "................"
+    ]
+  },
+  "runner": {
+    "rows": [
+      "................",
+      "................",
+      "....o.....o.....",
+      "...obo...obo....",
+      "...obbooobbo....",
+      "...obbbbbbbbo...",
+      "...ollllllllo...",
+      "...olwwllwwlo...",
+      "...olwkllkwlo...",
+      "...ollllllllo...",
+      "...obddddddbo...",
+      "...obbbbbbbbo...",
+      "....obbbbbbo....",
+      "....oobooboo....",
+      ".....o....o.....",
+      "................"
+    ]
+  },
+  "brute": {
+    "rows": [
+      "....................",
+      "....................",
+      "....oo......oo......",
+      "...obbo....obbo.....",
+      "..obbbboooobbbbo....",
+      "..obbbbbbbbbbbbbo...",
+      "..ollllllllllllllo..",
+      "..olwwllllllllwwlo..",
+      "..olwkllllllllkwlo..",
+      "..ollllllllllllllo..",
+      "..obbddddddddddbbo..",
+      "..obbbbbbbbbbbbbbo..",
+      "..obbbbbbbbbbbbbbo..",
+      "..obddddddddddddbo..",
+      "...obbbbbbbbbbbbo...",
+      "...oobbbbbbbbbboo...",
+      "..oobbo....obboo....",
+      "..ooo.......ooo.....",
+      "....................",
+      "...................."
+    ]
+  },
+  "summon_economy": {
+    "rows": [
+      "................",
+      "................",
+      "................",
+      "......oooo......",
+      ".....obbbbo.....",
+      "....obbbbbbo....",
+      "...obllllllbo...",
+      "...obllwwllbo...",
+      "...obllkkllbo...",
+      "...obbbbbbbbo...",
+      "..obbbbbbbbbbo..",
+      "..obbbbbbbbbbo..",
+      "...obbbbbbbbo...",
+      "....obbbbbbo....",
+      ".....oooooo.....",
+      "................"
+    ]
+  },
+  "summon_xp": {
+    "rows": [
+      "................",
+      ".......oo.......",
+      "......oaao......",
+      ".....oaaaao.....",
+      "....oaaaaaao....",
+      "....oawwwaao....",
+      "...oawwwwwaao...",
+      "...oaawwwaao....",
+      "...obbbbbbbbo...",
+      "..obbbbbbbbbbo..",
+      "..obbbbbbbbbbo..",
+      "...obbbbbbbbo...",
+      "....obbbbbbo....",
+      ".....oobboo.....",
+      "................",
+      "................"
+    ]
+  },
+  "summon_essence": {
+    "rows": [
+      "................",
+      "................",
+      "................",
+      "......oooo......",
+      ".....obbbbo.....",
+      "....obbbbbbo....",
+      "...obllllllbo...",
+      "...olwwwwwwlo...",
+      "...olwwkkwwlo...",
+      "...obllllllbo...",
+      "....obbbbbbo....",
+      ".....obbbbo.....",
+      "......oooo......",
+      "................",
+      "................",
+      "................"
+    ]
+  },
+  "bullet": {
+    "palette": { "o": "#8a6a1f", "b": "#ffd166", "h": "#fff6d0" },
+    "rows": [
+      "..oo..",
+      ".ohho.",
+      "ohhhho",
+      "ohhhho",
+      ".ohho.",
+      "..oo.."
+    ]
+  },
+  "pickup": {
+    "palette": { "o": "#06080e", "l": "#ffffff", "h": "#ffffff" },
+    "rows": [
+      "...........",
+      "....ooo....",
+      "...olhlo...",
+      "..olhhhlo..",
+      ".olhhhhhlo.",
+      ".ohhhhhhho.",
+      ".ohhhhhhho.",
+      "..ohhhhho..",
+      "...ohhho...",
+      "....oho....",
+      "..........."
+    ]
+  },
+  "shard": {
+    "palette": { "o": "#06080e", "a": "#ffffff" },
+    "rows": ["..o..", ".oao.", "oaaao", ".oao.", "..o.."]
+  }
+}

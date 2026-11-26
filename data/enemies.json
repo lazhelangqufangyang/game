@@ -1,0 +1,32 @@
+[
+  {
+    "id": "grunt",
+    "name": "杂兵",
+    "hp": 30,
+    "speed": 78,
+    "damage": 8,
+    "radius": 14,
+    "color": "#e05c5c",
+    "contact_cooldown_ms": 650
+  },
+  {
+    "id": "runner",
+    "name": "疾行者",
+    "hp": 18,
+    "speed": 132,
+    "damage": 6,
+    "radius": 11,
+    "color": "#f0a44a",
+    "contact_cooldown_ms": 550
+  },
+  {
+    "id": "brute",
+    "name": "重装",
+    "hp": 90,
+    "speed": 52,
+    "damage": 16,
+    "radius": 21,
+    "color": "#a855f7",
+    "contact_cooldown_ms": 800
+  }
+]

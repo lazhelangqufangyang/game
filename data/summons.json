@@ -1,0 +1,44 @@
+[
+  {
+    "id": "coffer",
+    "name": "经济怪",
+    "resource": "economy",
+    "reward": 3,
+    "hp": 45,
+    "speed": 88,
+    "damage": 7,
+    "radius": 15,
+    "color": "#ffd166",
+    "cooldown_ms": 9000,
+    "max_alive": 2,
+    "spawn_distance": 130
+  },
+  {
+    "id": "scholar",
+    "name": "经验怪",
+    "resource": "xp",
+    "reward": 10,
+    "hp": 45,
+    "speed": 88,
+    "damage": 7,
+    "radius": 15,
+    "color": "#5ee6a8",
+    "cooldown_ms": 9000,
+    "max_alive": 2,
+    "spawn_distance": 130
+  },
+  {
+    "id": "wisp",
+    "name": "精粹怪",
+    "resource": "essence",
+    "reward": 1,
+    "hp": 60,
+    "speed": 75,
+    "damage": 9,
+    "radius": 17,
+    "color": "#c084fc",
+    "cooldown_ms": 12000,
+    "max_alive": 2,
+    "spawn_distance": 150
+  }
+]

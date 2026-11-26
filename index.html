@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0b0e14" />
+    <link rel="icon" href="data:," />
+    <title>肉鸽波次</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b0e14;
+        overflow: hidden;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #app {
+        width: 100%;
+        height: 100%;
+      }
+      canvas {
+        display: block;
+        touch-action: none;
+      }
+      #rotate-hint {
+        display: none;
+        position: fixed;
+        inset: 0;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 12px;
+        color: #8a97ab;
+        font: 16px/1.6 "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+        background: #0b0e14;
+        z-index: 10;
+        text-align: center;
+      }
+      #rotate-hint strong {
+        color: #6ee7ff;
+        font-size: 20px;
+      }
+      @media (orientation: portrait) and (max-width: 900px) {
+        #rotate-hint {
+          display: flex;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="rotate-hint"><strong>请横屏游玩 ↻</strong>把手机转过来，视野更完整</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "id": "ranger",
+  "name": "游侠",
+  "max_hp": 100,
+  "speed": 260,
+  "radius": 16,
+  "color": "#6ee7ff",
+  "attack": {
+    "damage": 12,
+    "cooldown_ms": 320,
+    "bullet_speed": 760,
+    "range": 560,
+    "bullet_radius": 5
+  }
+}

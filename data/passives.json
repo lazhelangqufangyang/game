@@ -1,0 +1,119 @@
+[
+  {
+    "id": "edge",
+    "name": "锋刃",
+    "desc": "攻击力 +12%",
+    "rarity": "common",
+    "mods": { "damage_pct": 12 }
+  },
+  {
+    "id": "haste",
+    "name": "疾风",
+    "desc": "攻击速度 +12%",
+    "rarity": "common",
+    "mods": { "aspd_pct": 12 }
+  },
+  {
+    "id": "iron_body",
+    "name": "铁骨",
+    "desc": "生命上限 +25",
+    "rarity": "common",
+    "mods": { "max_hp": 25 }
+  },
+  {
+    "id": "stride",
+    "name": "轻身",
+    "desc": "移动速度 +10%",
+    "rarity": "common",
+    "mods": { "speed_pct": 10 }
+  },
+  {
+    "id": "focus",
+    "name": "远眺",
+    "desc": "攻击距离 +15%",
+    "rarity": "common",
+    "mods": { "range_pct": 15 }
+  },
+  {
+    "id": "hunter",
+    "name": "猎手",
+    "desc": "暴击率 +8%",
+    "rarity": "common",
+    "mods": { "crit_chance": 8 }
+  },
+  {
+    "id": "vigor",
+    "name": "生机",
+    "desc": "生命上限 +20",
+    "rarity": "common",
+    "mods": { "max_hp": 20 }
+  },
+  {
+    "id": "bulwark",
+    "name": "磐石",
+    "desc": "生命上限 +35",
+    "rarity": "common",
+    "mods": { "max_hp": 35 }
+  },
+  {
+    "id": "leech",
+    "name": "汲取",
+    "desc": "造成伤害的 4% 转化为生命",
+    "rarity": "rare",
+    "mods": { "lifesteal_pct": 4 }
+  },
+  {
+    "id": "split_shot",
+    "name": "分裂射击",
+    "desc": "每次攻击额外发射 1 发子弹",
+    "rarity": "rare",
+    "mods": { "multishot": 1 }
+  },
+  {
+    "id": "ember",
+    "name": "火种",
+    "desc": "攻击力 +8%（元素：火）",
+    "rarity": "common",
+    "element": "fire",
+    "mods": { "damage_pct": 8 }
+  },
+  {
+    "id": "spark",
+    "name": "雷核",
+    "desc": "攻击速度 +8%（元素：雷）",
+    "rarity": "common",
+    "element": "thunder",
+    "mods": { "aspd_pct": 8 }
+  },
+  {
+    "id": "tide",
+    "name": "水纹",
+    "desc": "生命上限 +15（元素：水）",
+    "rarity": "common",
+    "element": "water",
+    "mods": { "max_hp": 15 }
+  },
+  {
+    "id": "frost",
+    "name": "冰晶",
+    "desc": "暴击率 +6%（元素：冰）",
+    "rarity": "common",
+    "element": "ice",
+    "mods": { "crit_chance": 6 }
+  },
+  {
+    "id": "gale",
+    "name": "风息",
+    "desc": "移动速度 +8%（元素：风）",
+    "rarity": "common",
+    "element": "wind",
+    "mods": { "speed_pct": 8 }
+  },
+  {
+    "id": "burst",
+    "name": "爆裂",
+    "desc": "暴击伤害 +40%",
+    "rarity": "rare",
+    "mods": { "crit_mult": 40 }
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "_comment": [
+    "实体外观参数：贴图缩放、地面投影、行走压扁、是否按速度翻转、子弹是否朝速度旋转。",
+    "这是「换美术」的唯一接缝：以后拿到真实图集时，在这里加 atlas / frame 字段即可切换，",
+    "BattleScene 不需要改动。scale 请用整数，像素图非整数缩放会糊。"
+  ],
+  "hero": { "scale": 2, "shadow": 44, "bob": 0, "flip": true, "rotate": false },
+  "enemy-grunt": { "scale": 2, "shadow": 0, "bob": 0.08, "flip": true, "rotate": false },
+  "enemy-runner": { "scale": 2, "shadow": 0, "bob": 0.12, "flip": true, "rotate": false },
+  "enemy-brute": { "scale": 2, "shadow": 0, "bob": 0.05, "flip": true, "rotate": false },
+  "summon-coffer": { "scale": 2, "shadow": 0, "bob": 0.07, "flip": true, "rotate": false },
+  "summon-scholar": { "scale": 2, "shadow": 0, "bob": 0.09, "flip": true, "rotate": false },
+  "summon-wisp": { "scale": 2, "shadow": 0, "bob": 0.09, "flip": true, "rotate": false },
+  "pickup-economy": { "scale": 2, "shadow": 0, "bob": 0, "flip": false, "rotate": false },
+  "pickup-xp": { "scale": 2, "shadow": 0, "bob": 0, "flip": false, "rotate": false },
+  "pickup-essence": { "scale": 2, "shadow": 0, "bob": 0, "flip": false, "rotate": false },
+  "bullet": { "scale": 2, "shadow": 0, "bob": 0, "flip": false, "rotate": true },
+  "shard": { "scale": 1.5, "shadow": 0, "bob": 0, "flip": false, "rotate": false }
+}

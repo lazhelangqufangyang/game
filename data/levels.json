@@ -1,0 +1,12 @@
+{
+  "max_level": 10,
+  "xp_to_next": [10, 15, 22, 30, 40, 52, 66, 82, 100],
+  "growth_per_level": {
+    "max_hp": 8,
+    "damage_pct": 3,
+    "aspd_pct": 2,
+    "speed_pct": 1
+  },
+  "passive_offer_levels": [2, 3, 4, 5, 6, 7, 8, 9, 10],
+  "refresh_cost": 15
+}

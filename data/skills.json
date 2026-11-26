@@ -1,0 +1,31 @@
+[
+  {
+    "id": "dash",
+    "name": "疾影突进",
+    "desc": "向移动方向冲刺，短暂无敌",
+    "kind": "dash",
+    "level": 2,
+    "cooldown_ms": 6000,
+    "power": 240
+  },
+  {
+    "id": "nova",
+    "name": "震荡",
+    "desc": "以自身为中心造成范围伤害并击退",
+    "kind": "nova",
+    "level": 4,
+    "cooldown_ms": 9000,
+    "power": 2.2,
+    "radius": 190
+  },
+  {
+    "id": "barrage",
+    "name": "环射",
+    "desc": "向四周发射 16 发子弹",
+    "kind": "barrage",
+    "level": 6,
+    "cooldown_ms": 11000,
+    "power": 0.6,
+    "count": 16
+  }
+]

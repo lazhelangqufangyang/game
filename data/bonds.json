@@ -1,0 +1,36 @@
+[
+  {
+    "id": "element",
+    "name": "元素共鸣",
+    "star": 5,
+    "members": ["ember", "spark", "tide", "frost", "gale"],
+    "tiers": [
+      {
+        "need": 3,
+        "name": "元素回响",
+        "desc": "攻击力 +12%，暴击率 +8%",
+        "mods": { "damage_pct": 12, "crit_chance": 8 }
+      },
+      {
+        "need": 5,
+        "name": "元素风暴",
+        "desc": "攻击力 +30%，攻速 +25%，暴击伤害 +60%",
+        "mods": { "damage_pct": 30, "aspd_pct": 25, "crit_mult": 60 }
+      }
+    ]
+  },
+  {
+    "id": "vitality",
+    "name": "生命共鸣",
+    "star": 3,
+    "members": ["iron_body", "vigor", "bulwark"],
+    "tiers": [
+      {
+        "need": 3,
+        "name": "血脉觉醒",
+        "desc": "生命上限 +80，吸血 +4%",
+        "mods": { "max_hp": 80, "lifesteal_pct": 4 }
+      }
+    ]
+  }
+]
