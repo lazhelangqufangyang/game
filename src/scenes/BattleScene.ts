@@ -1269,14 +1269,6 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  /** 击杀顿帧：物理世界短暂慢放，打击感来源。 */
-  private hitStop(ms: number): void {
-    this.physics.world.timeScale = 0.08;
-    this.time.delayedCall(ms, () => {
-      this.physics.world.timeScale = 1;
-    });
-  }
-
   private applyLifesteal(damage: number): void {
     if (this.stats.lifesteal <= 0) return;
     const heal = damage * this.stats.lifesteal;
@@ -1313,7 +1305,6 @@ export class BattleScene extends Phaser.Scene {
     this.burst(x, y, color);
     this.spawnShards(x, y, color);
     sfx.play('kill');
-    this.hitStop(45);
   }
 
   /** 死亡碎块：比纯粒子更能看出「被打碎了」。 */
