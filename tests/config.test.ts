@@ -31,7 +31,7 @@ const levels = {
 };
 
 const hero = { id: 'h', name: 'H', max_hp: 100, speed: 100, radius: 10, color: '#fff', attack: { damage: 1, cooldown_ms: 100, bullet_speed: 100, range: 100, bullet_radius: 2 } };
-const enemies = [{ id: 'e', name: 'E', hp: 10, speed: 10, damage: 1, radius: 5, color: '#fff', contact_cooldown_ms: 100 }];
+const enemies = [{ id: 'e', name: 'E', hp: 10, speed: 10, damage: 1, radius: 5, attack_range: 4, color: '#fff', contact_cooldown_ms: 100, economy: 1, xp: 2 }];
 const waves = [{ index: 1, direction: 'random', groups: [{ enemy: 'e', count: 1, interval_ms: 100 }], hp_scale: 1, speed_scale: 1 }];
 
 const evolutions = [
@@ -85,6 +85,16 @@ describe('配置加载', () => {
         expect(config.enemies[g.enemy], `未定义的怪物 ${g.enemy}`).toBeTruthy();
       }
     });
+  });
+
+  it('怪物带击杀奖励，精英给精粹', () => {
+    for (const enemy of Object.values(config.enemies)) {
+      expect(enemy.economy).toBeGreaterThanOrEqual(0);
+      expect(enemy.xp).toBeGreaterThanOrEqual(0);
+      expect(enemy.attack_range).toBeLessThanOrEqual(enemy.radius);
+    }
+    const elite = Object.values(config.enemies).find((e) => e.elite);
+    expect(elite?.essence).toBeGreaterThan(0);
   });
 
   it('经验表长度与等级上限匹配，三选一等级在范围内', () => {

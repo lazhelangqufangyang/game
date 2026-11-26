@@ -6,8 +6,11 @@
     "speed": 78,
     "damage": 8,
     "radius": 14,
+    "attack_range": 9,
     "color": "#e05c5c",
-    "contact_cooldown_ms": 650
+    "contact_cooldown_ms": 650,
+    "economy": 1,
+    "xp": 2
   },
   {
     "id": "runner",
@@ -16,8 +19,11 @@
     "speed": 132,
     "damage": 6,
     "radius": 11,
+    "attack_range": 7,
     "color": "#f0a44a",
-    "contact_cooldown_ms": 550
+    "contact_cooldown_ms": 550,
+    "economy": 1,
+    "xp": 2
   },
   {
     "id": "brute",
@@ -26,8 +32,13 @@
     "speed": 52,
     "damage": 16,
     "radius": 21,
+    "attack_range": 13,
     "color": "#a855f7",
-    "contact_cooldown_ms": 800
+    "contact_cooldown_ms": 800,
+    "economy": 4,
+    "xp": 6,
+    "essence": 1,
+    "elite": true
   },
   {
     "id": "warden",
@@ -36,8 +47,12 @@
     "speed": 58,
     "damage": 22,
     "radius": 32,
+    "attack_range": 18,
     "color": "#ff4d6d",
     "contact_cooldown_ms": 900,
+    "economy": 20,
+    "xp": 20,
+    "essence": 5,
     "boss": true
   }
 ]

@@ -197,8 +197,8 @@
 /src/
   main.ts         Phaser 启动、分辨率与缩放策略
   config/         加载 + 校验 /data
-  assets/         美术层：pixel.ts（矩阵→贴图）arena.ts（战斗背景插画）ambience.ts（火焰/浮尘/薄雾）tiles.ts（暗角）sprites.ts（装配）visuals.ts（外观校验）backdrop.ts（菜单背景）
-  art-preview.ts  背景预览页的入口（preview.html）
+  assets/         美术层：pixel.ts（矩阵→贴图）poses.ts（行走/受击/死亡帧派生）arena.ts（战斗背景插画）ambience.ts（火焰/浮尘/薄雾）tiles.ts（暗角）sprites.ts（装配）visuals.ts（外观校验）backdrop.ts（菜单背景）
+  art-preview.ts  美术预览页入口（preview.html：背景 / 姿势总览）
   scenes/         Boot / Prep / Battle / Result（+ UIScene overlay）
   systems/        wave summon resource levelup passive bond shop hero
   entities/       Player Enemy Summon Projectile Pickup
@@ -206,8 +206,8 @@
   core/           eventBus、rng（带种子）、run（初始状态）、save（localStorage 存档）、sfx（WebAudio 合成音效）、types
 /tests/           Vitest：资源结算、8 格规则、羁绊进化、升级曲线、刷怪节奏
 /tools/           无头浏览器冒烟测试（Edge + puppeteer-core）+ 美术预览（sprite-sheet.mjs / art.mjs / arena-shot.mjs）
-/preview.html     只渲染战斗背景的预览页（不启动 Phaser、不依赖 /data）
-/docs/            美术管线等说明（art.md）
+/preview.html     美术预览页：无参数看战斗背景，`?sheet=1` 看所有角色 × 4 姿势帧
+/docs/            美术管线（art.md）、AI 出图规格（art-prompts.md）
 /public/assets/   图片/音频（v0.1 未使用：美术全部程序化生成，见 docs/art.md）
 ```
 
@@ -327,3 +327,4 @@ npm run typecheck  # tsc --noEmit
 | 2026-11-26 | M6 完成 | 扩到 8 波（第 8 波 Boss 守关者，顶部血条）；难度曲线 hp_scale 1→2；localStorage 自动存档/续档/通关清档；WebAudio 合成音效（M 静音）；击杀顿帧 + 伤害数字；补 `core/save.ts`、`core/sfx.ts`、`core/run.ts`、`tests/save.test.ts`、`tools/m6.mjs` |
 | 2026-11-26 | M7 装备体系 | 装备拆成三阶（小件 1 / 中件 2 / 大件 3），**全部占格、共 6 格**；配方规则：两小件→中件、中件+小件→大件、双中件→大件（校验强制组件 tier 更低）；合成消耗组件并净腾格，满格也能合；商店 2×2 四件并保证至少 2 件小件；存档版本升到 2；补 `tools/shop.mjs` 与配方单测 |
 | 2026-11-26 | 战斗背景重做（插画化） | 背景从平铺地砖改为**一张程序化绘制的夜景插画**：三层阶梯圆台 + 放射/同心石缝 + 遗迹裂纹苔痕 + 中央法阵 + 四角巨石与火盆 + 月光/火光的冷暖光照 + 暗角与胶片颗粒。加 `src/assets/arena.ts`（8–10ms 生成，单张 1280×720 贴图）与 `src/assets/ambience.ts`（火焰粒子、余烬、浮尘、双层薄雾、法阵呼吸）。支持把真插画放 `src/assets/arena*.png` 直接替换（`import.meta.glob`，无图时不产生 404）。补 `preview.html` + `src/art-preview.ts` + `tools/arena-shot.mjs`，可脱离 Phaser 单独看背景。顺手补 Boss「守关者」像素图（原为圆点兜底）与底部 UI 底衬（原会透出战场） |
+| 2026-11-26 | 姿势帧 + 缩放清晰化 + AI 出图规格 | ① 加 `src/assets/poses.ts`：每个会动单位自动派生 **行走（-walk1）/ 受击（-hurt）/ 死亡（-death）** 三套帧，`walk_ms` 控制帧速（`visuals.json`），可在 `sprites.json` 里用同名 `walk`/`hurt`/`death` 手画覆盖；`bob` 降为 0.02–0.05 的余动。② 手机非整数缩放：`pixelArt` + `autoRound` + CSS `image-rendering: pixelated` + 文字 `resolution: 2`，画布 CSS 尺寸由 693.33 变为整数 693。③ 新 `docs/art-prompts.md`：路线 B（AI 出图 → 我接入）的完整规格：逻辑尺寸表、风格块、每个单位的 prompt、negative、生成参数、交付命名、验收清单。④ `preview.html?sheet=1` 出姿势总览，`node tools/arena-shot.mjs sheet` 截图 |

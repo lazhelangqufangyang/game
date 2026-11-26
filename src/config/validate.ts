@@ -98,8 +98,13 @@ export function parseEnemies(raw: unknown): Record<string, EnemyDef> {
       speed: num(o.speed, `${path}.speed`, { min: 1 }),
       damage: num(o.damage, `${path}.damage`, { min: 0 }),
       radius: num(o.radius, `${path}.radius`, { min: 1 }),
+      attack_range: num(o.attack_range, `${path}.attack_range`, { min: 1 }),
       color: str(o.color, `${path}.color`),
       contact_cooldown_ms: num(o.contact_cooldown_ms, `${path}.contact_cooldown_ms`, { min: 1 }),
+      economy: num(o.economy ?? 0, `${path}.economy`, { min: 0 }),
+      xp: num(o.xp ?? 0, `${path}.xp`, { min: 0 }),
+      essence: o.essence === undefined ? undefined : num(o.essence, `${path}.essence`, { min: 0 }),
+      elite: o.elite === undefined ? undefined : o.elite === true,
       boss: o.boss === undefined ? undefined : o.boss === true,
     };
   });

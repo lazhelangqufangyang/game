@@ -2,7 +2,7 @@
   "max_level": 10,
   "xp_to_next": [10, 15, 22, 30, 40, 52, 66, 82, 100],
   "growth_per_level": {
-    "max_hp": 8,
+    "max_hp": 3,
     "damage_pct": 3,
     "aspd_pct": 2,
     "speed_pct": 1

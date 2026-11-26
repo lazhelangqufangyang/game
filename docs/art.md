@@ -55,9 +55,26 @@ npm run dev
 ```
 
 - `http://127.0.0.1:5173/preview.html` — **只渲染背景**，不启动 Phaser、不依赖 `/data` 配置（并行改玩法时也能单独验收美术）。标题栏会显示绘制耗时。
-- `node tools/arena-shot.mjs` — 把上面这页截到 `.shots/40-arena.png`。
-- `node tools/sprite-sheet.mjs` — 6 倍放大所有角色贴图到 `.shots/sprites.png`，行宽不一致会报警。
+- `http://127.0.0.1:5173/preview.html?sheet=1` — **姿势总览**：所有角色 × 4 个姿势帧（基础 / 行走 / 受击 / 死亡）。
+- `node tools/arena-shot.mjs` — 截背景到 `.shots/40-arena.png`。
+- `node tools/arena-shot.mjs sheet` — 截姿势总览到 `.shots/41-poses.png`。
+- `node tools/sprite-sheet.mjs` — 6 倍放大所有角色基础贴图到 `.shots/sprites.png`，行宽不一致会报警。
 - `node tools/art.mjs` — 截 Prep / 战斗 / 召唤三张实际画面到 `.shots/`。
+
+## 0.4 行走 / 受击 / 死亡帧（`src/assets/poses.ts`）
+
+每个会动的单位（英雄、怪物、召唤物）在编译时会自动多出 3 张贴图：
+
+| 贴图 key | 用途 | 生成方式 |
+|---|---|---|
+| `<key>-walk1` | 行走第 2 帧（与基础帧交替） | 下半身向两侧张开，读作迈步 |
+| `<key>-hurt` | 受击帧 | 横向向中心收 1px + 整体下移 1px，配合闪白 |
+| `<key>-death` | 死亡帧 | 垂直压扁成"塌下去"的一坨，配淡化 + 碎块 |
+
+- 切换频率在 `data/visuals.json` 的 `walk_ms`（每个单位可以不同：疾行者 130ms、重装 280ms、Boss 360ms）。
+- **想手画覆盖**：在 `data/sprites.json` 对应条目里加同名 `walk` / `hurt` / `death` 行数组即可，编译时优先用手画的。
+- `bob`（垂直压扁）现在只保留 0.02–0.05 的余动，**它不再是"走路"的替代品**。
+- 消耗类贴图（bullet / pickup / shard）不生成姿势帧。
 
 ## 1. 怎么改一张图
 
@@ -129,8 +146,10 @@ v0.1 的贴图全部是本仓库自己生成的，无第三方素材，无授权
 
 ## 5. 已知不足（下一步）
 
-- 角色只有 2 帧走路（英雄），怪物靠压扁代替行走帧。
-- 没有方向性美术（俯视追逐，靠 `flipX` 翻转）。
-- 没有受击/死亡/释放技能的专属帧，靠 tint 和缩放凑。
-- 地砖只有一种石板纹，波次之间没有环境变化。
-- 手机端 `Scale.FIT` 由浏览器缩放 canvas，非整数倍时像素图会有轻微模糊。
+- 行走只有 **2 帧**（基础 + `-walk1`）；4/6 帧会更顺，但需要手画覆盖。
+- 没有方向性美术（俯视追逐，靠 `flipX` 翻转），只有左右两个朝向。
+- 受击 / 死亡帧是**程序化派生**的（收缩 / 压扁），不是手绘专属动作。
+- 召唤物与怪物的剪影差异靠颜色 + 有无角，不够强。
+- 手机端：已用 `pixelArt` + `autoRound` + CSS `image-rendering: pixelated` + 文字 2 倍纹理密度
+  解决"非整数缩放发糊"，代价是像素边缘在大幅缩小时会有一点锯齿（画布 buf 仍是 1280×720）。
+- 想要真正往"商业像素游戏"走，见 `docs/art-prompts.md`（路线 B：AI 出图 + 我接入）。

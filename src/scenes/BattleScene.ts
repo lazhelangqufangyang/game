@@ -64,6 +64,7 @@ export class BattleScene extends Phaser.Scene {
 
   private attackCd = 0;
   private invuln = 0;
+  private heroHurtUntil = 0;
   private waveCleared = false;
   private dead = false;
   private bossSprite: Phaser.Physics.Arcade.Sprite | null = null;
@@ -156,9 +157,6 @@ export class BattleScene extends Phaser.Scene {
     });
     this.physics.add.overlap(this.bullets, this.summons, (b, s) => {
       this.hitSummon(b as Phaser.Physics.Arcade.Sprite, s as Phaser.Physics.Arcade.Sprite);
-    });
-    this.physics.add.overlap(this.player, this.enemies, (_p, e) => {
-      this.touchPlayer(e as Phaser.Physics.Arcade.Sprite);
     });
     this.physics.add.overlap(this.player, this.summons, (_p, s) => {
       this.touchPlayer(s as Phaser.Physics.Arcade.Sprite);
@@ -474,13 +472,15 @@ export class BattleScene extends Phaser.Scene {
     }
     this.player.setVelocity(vx * speed, vy * speed);
 
-    if (len > 0) {
-      if (vx < -0.1) this.player.setFlipX(true);
-      else if (vx > 0.1) this.player.setFlipX(false);
-      this.player.play('hero-walk', true);
-    } else if (this.player.anims.isPlaying) {
-      this.player.stop();
-      this.player.setTexture('hero');
+    if (this.time.now >= this.heroHurtUntil) {
+      if (len > 0) {
+        if (vx < -0.1) this.player.setFlipX(true);
+        else if (vx > 0.1) this.player.setFlipX(false);
+        this.player.play('hero-walk', true);
+      } else if (this.player.anims.isPlaying) {
+        this.player.stop();
+        this.player.setTexture('hero');
+      }
     }
 
     if (this.playerShadow) {
@@ -498,6 +498,13 @@ export class BattleScene extends Phaser.Scene {
       const speed = (e.getData('speed') as number) * this.wave.speed_scale;
       this.physics.moveToObject(e, this.player, speed);
       this.animateWalk(e, this.time.now);
+
+      // 接触伤害用比碰撞体更小的 attack_range 判定，避免“擦到就掉血”
+      const def = config.enemies[e.getData('def_id') as string];
+      if (def && this.invuln <= 0) {
+        const dist = Phaser.Math.Distance.Between(e.x, e.y, this.player.x, this.player.y);
+        if (dist <= def.attack_range + config.hero.radius) this.touchPlayer(e);
+      }
     }
 
     if (this.attackCd <= 0) {
@@ -506,7 +513,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** 敌人走路：横向翻转朝向前进方向 + 轻微压扁，省掉 8 方向行走图。 */
+  /** 敌人走路：横向翻转 + 2 帧行走贴图交替（-walk1），压扁只留一点余动。 */
   private animateWalk(sprite: Phaser.Physics.Arcade.Sprite, now: number): void {
     const visual = sprite.getData('visual') as VisualDef | undefined;
     if (!visual) return;
@@ -514,11 +521,53 @@ export class BattleScene extends Phaser.Scene {
     if (visual.flip && body && Math.abs(body.velocity.x) > 1) {
       sprite.setFlipX(body.velocity.x < 0);
     }
+
+    // 受击帧播放期间不要被行走帧覆盖
+    if (now < ((sprite.getData('hurt_until') as number) ?? 0)) return;
+    // 出场缩放动画期间不要插手 scale / 贴图
+    if (now < ((sprite.getData('spawn_until') as number) ?? 0)) return;
+
+    const baseKey = sprite.getData('base_key') as string | undefined;
+    if (baseKey) {
+      const ms = (sprite.getData('walk_ms') as number) ?? 170;
+      const phase = (sprite.getData('bob_phase') as number) ?? 0;
+      const frame = Math.floor(now / ms + phase) % 2;
+      const key = frame === 0 ? baseKey : `${baseKey}-walk1`;
+      if (this.textures.exists(key) && sprite.texture.key !== key) sprite.setTexture(key);
+    }
+
     if (visual.bob > 0) {
       const phase = (sprite.getData('bob_phase') as number) ?? 0;
       const squash = 1 + Math.sin(now * 0.011 + phase) * visual.bob;
       sprite.setScale(visual.scale, visual.scale * squash);
     }
+  }
+
+  /** 切到受击帧并闪白，ms 后由 animateWalk 接管回行走帧。 */
+  private poseHurt(sprite: Phaser.Physics.Arcade.Sprite, ms = 90): void {
+    const baseKey = sprite.getData('base_key') as string | undefined;
+    if (baseKey) {
+      const hurtKey = `${baseKey}-hurt`;
+      if (this.textures.exists(hurtKey)) sprite.setTexture(hurtKey);
+    }
+    sprite.setData('hurt_until', this.time.now + ms);
+    this.flashTarget(sprite);
+  }
+
+  /** 死亡帧：短暂留下一个塌扁的残影，让"倒下"看得见，再交给碎块。 */
+  private spawnDeathPose(x: number, y: number, baseKey: string, visual: VisualDef): void {
+    const key = `${baseKey}-death`;
+    if (!this.textures.exists(key)) return;
+    const ghost = this.add.image(x, y, key).setDepth(3.5).setScale(visual.scale);
+    this.tweens.add({
+      targets: ghost,
+      alpha: 0,
+      scaleX: visual.scale * 1.2,
+      scaleY: visual.scale * 0.66,
+      duration: 260,
+      ease: 'Quad.easeOut',
+      onComplete: () => ghost.destroy(),
+    });
   }
 
   /** 受击闪白：比改 alpha 更有打击感。 */
@@ -618,17 +667,22 @@ export class BattleScene extends Phaser.Scene {
         break;
     }
 
-    const visual = visualOf(`enemy-${def.id}`);
-    const enemy = this.enemies.get(x, y, `enemy-${def.id}`) as Phaser.Physics.Arcade.Sprite | null;
+    const baseKey = `enemy-${def.id}`;
+    const visual = visualOf(baseKey);
+    const enemy = this.enemies.get(x, y, baseKey) as Phaser.Physics.Arcade.Sprite | null;
     if (!enemy) return;
 
     enemy.enableBody(true, x, y, true, true);
     enemy.clearTint();
     enemy.setAlpha(1);
+    enemy.setTexture(baseKey);
     enemy.setScale(visual.scale);
     enemy.setCircle(def.radius);
     enemy.setDepth(3);
     enemy.setData('visual', visual);
+    enemy.setData('base_key', baseKey);
+    enemy.setData('walk_ms', visual.walk_ms);
+    enemy.setData('hurt_until', 0);
     enemy.setData('bob_phase', Math.random() * Math.PI * 2);
     enemy.setData('hp', def.hp * this.wave.hp_scale);
     enemy.setData('damage', def.damage);
@@ -784,12 +838,18 @@ export class BattleScene extends Phaser.Scene {
     }
 
     summon.enableBody(true, x, y, true, true);
-    const visual = visualOf(`summon-${def.id}`);
+    const baseKey = `summon-${def.id}`;
+    const visual = visualOf(baseKey);
+    summon.setTexture(baseKey);
     summon.setScale(visual.scale * 0.2).setAlpha(1);
     summon.clearTint();
     summon.setCircle(def.radius);
     summon.setDepth(4);
     summon.setData('visual', visual);
+    summon.setData('base_key', baseKey);
+    summon.setData('walk_ms', visual.walk_ms);
+    summon.setData('hurt_until', 0);
+    summon.setData('spawn_until', this.time.now + 200);
     summon.setData('bob_phase', Math.random() * Math.PI * 2);
     summon.setData('hp', def.hp);
     summon.setData('damage', def.damage);
@@ -808,15 +868,12 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private updateSummonMovement(): void {
+    const now = this.time.now;
     for (const obj of this.summons.getChildren()) {
       const s = obj as Phaser.Physics.Arcade.Sprite;
       if (!s.active) continue;
       this.physics.moveToObject(s, this.player, s.getData('speed') as number);
-      const visual = s.getData('visual') as VisualDef | undefined;
-      const body = s.body as Phaser.Physics.Arcade.Body | null;
-      if (visual?.flip && body && Math.abs(body.velocity.x) > 1) {
-        s.setFlipX(body.velocity.x < 0);
-      }
+      this.animateWalk(s, now);
     }
   }
 
@@ -831,7 +888,7 @@ export class BattleScene extends Phaser.Scene {
     const hp = (summon.getData('hp') as number) - dmg;
     summon.setData('hp', hp);
     if (hp > 0) {
-      this.flashTarget(summon);
+      this.poseHurt(summon);
       return;
     }
     this.killSummon(summon);
@@ -845,6 +902,7 @@ export class BattleScene extends Phaser.Scene {
     const reward = summon.getData('reward') as number;
     const color = RESOURCE_META[resource].hex;
 
+    this.spawnDeathPose(x, y, `summon-${defId}`, visualOf(`summon-${defId}`));
     summon.disableBody(true, true);
     this.summonSystem.release(defId);
     this.burst(x, y, color);
@@ -1127,7 +1185,7 @@ export class BattleScene extends Phaser.Scene {
     sfx.play('hit');
 
     if (hp > 0) {
-      this.flashTarget(enemy);
+      this.poseHurt(enemy);
       return;
     }
     this.killEnemy(enemy);
@@ -1138,7 +1196,7 @@ export class BattleScene extends Phaser.Scene {
     const jitterX = (Math.random() - 0.5) * 16;
     const label = this.add
       .text(x + jitterX, y, `${Math.round(amount)}${crit ? '!' : ''}`, {
-        fontFamily: '"Microsoft YaHei", system-ui, sans-serif',
+        ...TEXT_STYLE,
         fontSize: crit ? '22px' : '15px',
         color: crit ? '#ffd166' : '#ffffff',
         fontStyle: 'bold',
@@ -1179,8 +1237,21 @@ export class BattleScene extends Phaser.Scene {
     const color = Phaser.Display.Color.HexStringToColor(
       config.enemies[defId]?.color ?? '#ffffff',
     ).color;
+    const visual = visualOf(`enemy-${defId}`);
+    this.spawnDeathPose(x, y, `enemy-${defId}`, visual);
     enemy.disableBody(true, true);
     this.run.kills += 1;
+
+    const def = config.enemies[defId];
+    if (def) {
+      if (def.economy > 0) grantResource(this.run, 'economy', def.economy);
+      if (def.essence && def.essence > 0) {
+        grantResource(this.run, 'essence', def.essence);
+        this.popText(x, y - 18, `+${def.essence} 精粹`, RESOURCE_META.essence.color);
+      }
+      if (def.xp > 0) this.gainXp(def.xp);
+    }
+
     const healOnKill = evolutionPerks(config.evolutions, this.run.evolutions).heal_on_kill;
     if (healOnKill > 0) {
       this.run.hp = Math.min(this.run.max_hp, this.run.hp + healOnKill);
@@ -1282,12 +1353,19 @@ export class BattleScene extends Phaser.Scene {
 
     this.cameras.main.shake(120, 0.006);
     sfx.play('hurt');
+    // 受击帧：切换姿势 + 红闪，130ms 后交回行走动画
+    this.heroHurtUntil = this.time.now + 130;
+    this.player.anims.stop();
+    if (this.textures.exists('hero-hurt')) this.player.setTexture('hero-hurt');
     this.player.setTintFill(0xff5c7a);
     this.player.setAlpha(0.55);
     this.time.delayedCall(110, () => {
       if (!this.player.active) return;
       this.player.clearTint();
       this.player.setAlpha(1);
+      if (this.time.now >= this.heroHurtUntil && !this.player.anims.isPlaying) {
+        this.player.setTexture('hero');
+      }
     });
 
     if (this.run.hp <= 0) this.onPlayerDeath();
@@ -1300,6 +1378,16 @@ export class BattleScene extends Phaser.Scene {
     this.physics.pause();
     this.cameras.main.shake(260, 0.012);
     this.cameras.main.flash(120, 120, 0, 20);
+
+    // 死亡帧：塌下去 + 淡出，然后才切结算
+    this.player.anims.stop();
+    if (this.textures.exists('hero-death')) {
+      this.player.setTexture('hero-death').clearTint().setAlpha(1);
+      this.tweens.add({ targets: this.player, alpha: 0.35, duration: 500, ease: 'Quad.easeIn' });
+    }
+    if (this.playerShadow) {
+      this.tweens.add({ targets: this.playerShadow, alpha: 0, duration: 400 });
+    }
 
     this.time.delayedCall(650, () => {
       this.scene.start('Result', {

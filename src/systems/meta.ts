@@ -136,17 +136,35 @@ export function buyItem(
   return 'ok';
 }
 
-/** 每波 4 件商品：保证至少 2 个小件，其余从全部装备里抽。 */
+export type SellResult = 'ok' | 'missing';
+
+/** 回收价：售价的一半（向下取整，至少 1）。合成后的成品按自身售价折算，不追溯组件。 */
+export function sellValue(item: ItemDef): number {
+  return Math.max(1, Math.floor(item.price * 0.5));
+}
+
+export function sellItem(
+  item: ItemDef,
+  run: Pick<RunState, 'economy' | 'items'>,
+): SellResult {
+  const index = run.items.indexOf(item.id);
+  if (index < 0) return 'missing';
+  run.items = run.items.filter((_, i) => i !== index);
+  run.economy += sellValue(item);
+  return 'ok';
+}
+
+/** 每波 4 件商品：保证至少 2 个小件，其余从全部商品（含治疗药剂）里抽。 */
 export function rollShop(items: readonly ItemDef[], rng: () => number, count = 4): string[] {
   const smalls = items.filter((i) => i.kind === 'item' && i.tier === 1);
-  const others = items.filter((i) => i.kind === 'item' && (i.tier ?? 1) > 1);
+  const others = items.filter((i) => i.kind !== 'item' || (i.tier ?? 1) > 1);
   const picked: string[] = [];
 
   const draw = (pool: ItemDef[]) => {
     while (pool.length > 0 && picked.length < count) {
       const index = Math.floor(rng() * pool.length);
       const [item] = pool.splice(index, 1);
-      if (item) picked.push(item.id);
+      if (item && !picked.includes(item.id)) picked.push(item.id);
     }
   };
 
@@ -159,6 +177,6 @@ export function rollShop(items: readonly ItemDef[], rng: () => number, count = 4
   }
 
   draw(others.slice());
-  if (picked.length < count) draw(items.filter((i) => i.kind === 'item').slice());
+  if (picked.length < count) draw(items.slice());
   return picked;
 }

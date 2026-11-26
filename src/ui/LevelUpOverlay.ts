@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { PassiveDef } from '../core/types';
-import { COLORS, FONT, TEXT_STYLE } from './style';
+import { COLORS, TEXT_STYLE } from './style';
 
 const CARD_W = 250;
 const CARD_H = 300;
@@ -350,7 +350,7 @@ export class LevelUpOverlay {
     const { width, height } = this.scene.scale;
     const tip = this.scene.add
       .text(width / 2, height / 2 + 232, '经济不足', {
-        fontFamily: FONT,
+        ...TEXT_STYLE,
         fontSize: '16px',
         color: COLORS.danger,
       })

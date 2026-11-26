@@ -33,8 +33,14 @@ export interface EnemyDef {
   speed: number;
   damage: number;
   radius: number;
+  /** 接触伤害的实际判定距离（比碰撞体小，避免“擦到就掉血”）。 */
+  attack_range: number;
   color: string;
   contact_cooldown_ms: number;
+  economy: number;
+  xp: number;
+  essence?: number;
+  elite?: boolean;
   boss?: boolean;
 }
 

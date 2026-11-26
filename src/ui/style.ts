@@ -13,7 +13,14 @@ export const COLORS = {
   danger_line: 0xff5c7a,
 } as const;
 
+/**
+ * 文字纹理密度：画布最终会被浏览器缩放到非整数倍，
+ * 用 2 倍密度渲染文字，缩小时仍然清晰（`pixelArt` 下尤其明显）。
+ */
+export const TEXT_RESOLUTION = 2;
+
 export const TEXT_STYLE = {
   fontFamily: FONT,
   color: COLORS.text,
+  resolution: TEXT_RESOLUTION,
 } as const;

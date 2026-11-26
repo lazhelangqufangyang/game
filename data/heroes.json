@@ -1,8 +1,8 @@
 {
   "id": "ranger",
   "name": "游侠",
-  "max_hp": 100,
-  "speed": 260,
+  "max_hp": 25,
+  "speed": 320,
   "radius": 16,
   "color": "#6ee7ff",
   "attack": {

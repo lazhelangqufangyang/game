@@ -25,6 +25,9 @@
       canvas {
         display: block;
         touch-action: none;
+        /* 像素风：浏览器做最后缩放时用最近邻，避免非整数缩放把像素糊成一片 */
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
       }
       #rotate-hint {
         display: none;

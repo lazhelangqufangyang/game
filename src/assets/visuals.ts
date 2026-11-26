@@ -6,12 +6,14 @@ export interface VisualDef {
   scale: number;
   /** 地面投影的椭圆宽度（px），0 表示不画。 */
   shadow: number;
-  /** 行走时的垂直压扁幅度（0–0.2）。 */
+  /** 行走时的垂直压扁幅度（0–0.2）。有行走帧后建议调到 0.03 以内。 */
   bob: number;
   /** 是否按水平速度左右翻转。 */
   flip: boolean;
   /** 是否让朝向跟随速度（子弹用）。 */
   rotate: boolean;
+  /** 行走帧切换间隔（ms）；越小走得越快。 */
+  walk_ms: number;
 }
 
 const FILE = 'data/visuals.json';
@@ -49,6 +51,8 @@ function buildVisuals(input: unknown): Record<string, VisualDef> {
       bob: number(o.bob, `${path}.bob`, 0, 0.3),
       flip: bool(o.flip, `${path}.flip`),
       rotate: bool(o.rotate, `${path}.rotate`),
+      // 行走帧间隔可省略，默认 170ms（约 6 帧/秒的 2 帧循环）
+      walk_ms: o.walk_ms === undefined ? 170 : number(o.walk_ms, `${path}.walk_ms`, 40, 1200),
     };
   }
   if (Object.keys(out).length === 0) fail(FILE, '至少要有一个外观条目');
@@ -62,5 +66,5 @@ export function visualOf(key: string): VisualDef {
   const found = visuals[key];
   if (found) return found;
   console.warn(`[visuals] 未声明 ${key}，使用默认外观`);
-  return { scale: 1, shadow: 0, bob: 0, flip: false, rotate: false };
+  return { scale: 1, shadow: 0, bob: 0, flip: false, rotate: false, walk_ms: 170 };
 }

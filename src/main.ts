@@ -8,6 +8,14 @@ import { ResultScene } from './scenes/ResultScene';
 
 const forceCanvas = new URLSearchParams(window.location.search).get('renderer') === 'canvas';
 
+/**
+ * 缩放策略（像素风的关键）：
+ * - `FIT` + `autoCenter`：等比铺满、留黑边，逻辑坐标始终 1280×720。
+ * - `autoRound: true`：把画布 CSS 尺寸取整，去掉半像素造成的糊。
+ * - `pixelArt: true`：关抗锯齿 + roundPixels，贴图边缘保持硬像素。
+ * - 再配合 index.html 的 `image-rendering: pixelated`，浏览器做最后缩放时用最近邻，
+ *   不再是双线性模糊；文字用 `TEXT_STYLE.resolution` 提高纹理密度来保持清晰。
+ */
 const game = new Phaser.Game({
   type: forceCanvas ? Phaser.CANVAS : Phaser.AUTO,
   parent: 'app',
@@ -17,12 +25,13 @@ const game = new Phaser.Game({
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: 1280,
     height: 720,
+    autoRound: true,
   },
   physics: {
     default: 'arcade',
     arcade: { debug: false, gravity: { x: 0, y: 0 } },
   },
-  render: { antialias: true, roundPixels: false },
+  render: { pixelArt: true, antialias: false, roundPixels: true },
   scene: [BootScene, PrepScene, BattleScene, ResultScene],
 });
 

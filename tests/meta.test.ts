@@ -11,6 +11,7 @@ import {
   ownedCount,
   recipeStatus,
   rollShop,
+  sellItem,
 } from '../src/systems/meta';
 import { mulberry32 } from '../src/core/rng';
 import type { EvolutionStage, ItemDef } from '../src/core/types';
@@ -186,6 +187,23 @@ describe('装备：小件也占格', () => {
   it('只有带主动效果的装备进入主动栏', () => {
     expect(activeItems(items, ['shadow_blade'])).toHaveLength(1);
     expect(activeItems(items, ['dagger'])).toHaveLength(0);
+  });
+
+  it('回收装备返还半价并移除一件', () => {
+    const r = run();
+    buyItem(items[1]!, r);
+    buyItem(items[1]!, r);
+    expect(r.items).toHaveLength(2);
+
+    expect(sellItem(items[1]!, r)).toBe('ok');
+    expect(r.items).toEqual(['dagger']);
+    expect(r.economy).toBe(100 - 16 + 4);
+  });
+
+  it('回收不存在的装备返回 missing 且不给钱', () => {
+    const r = run();
+    expect(sellItem(items[1]!, r)).toBe('missing');
+    expect(r.economy).toBe(100);
   });
 });
 
